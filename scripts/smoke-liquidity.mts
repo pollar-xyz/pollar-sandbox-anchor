@@ -9,7 +9,7 @@ const { Asset, Keypair } = createRequire(import.meta.url)('@stellar/stellar-sdk'
 // env() validates every variable, so fill the ones this script never touches with placeholders.
 const defaults: Record<string, string> = {
   DATABASE_URL: 'postgresql://unused',
-  PUBLIC_URL: 'http://localhost:3080',
+  PUBLIC_URL: 'http://localhost:3090',
   SECRETS_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
   SEP10_JWT_SECRET: randomBytes(32).toString('hex'),
   AUTH_SECRET: randomBytes(32).toString('hex'),

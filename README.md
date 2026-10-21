@@ -19,7 +19,7 @@ Requirements: Node 24 (`.nvmrc`), pnpm 11.8 (`corepack enable`), a Postgres data
 pnpm install
 cp .env.example .env.local   # fill it in
 pnpm db:migrate
-pnpm dev                     # http://localhost:3080
+pnpm dev                     # http://localhost:3090
 ```
 
 SEP-10 and the interactive URLs must be https outside localhost.
@@ -28,7 +28,7 @@ SEP-10 and the interactive URLs must be https outside localhost.
 
 | Script            | What it does                     |
 | ----------------- | -------------------------------- |
-| `pnpm dev`        | Next.js dev server on port 3080  |
+| `pnpm dev`        | Next.js dev server on port 3090  |
 | `pnpm build`      | Prisma client + production build |
 | `pnpm typecheck`  | `tsc --noEmit`                   |
 | `pnpm test`       | Vitest                           |
