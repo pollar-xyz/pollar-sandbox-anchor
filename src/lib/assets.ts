@@ -20,7 +20,7 @@ export const FIAT_META: Record<
   { name: string; country: string; symbol: string; bankField: string; bankName: string; alias: string }
 > = {
   ARS: {
-    name: 'Peso Digital (sandbox)',
+    name: 'Peso Digital Sandbox',
     country: 'AR',
     symbol: '$',
     bankField: 'CBU',
@@ -28,7 +28,7 @@ export const FIAT_META: Record<
     alias: 'ARS.SANDBOX.POLLAR',
   },
   PEN: {
-    name: 'Sol Digital (sandbox)',
+    name: 'Sol Digital Sandbox',
     country: 'PE',
     symbol: 'S/',
     bankField: 'CCI',

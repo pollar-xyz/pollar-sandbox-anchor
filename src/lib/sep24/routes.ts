@@ -1,4 +1,5 @@
 import type { Prisma, TransactionKind } from '@prisma/client';
+import { StrKey } from '@stellar/stellar-sdk';
 import { NextResponse } from 'next/server';
 import { fiatAsset, isFiatCode } from '../assets';
 import { db } from '../db';
@@ -20,6 +21,7 @@ export async function startInteractive(request: Request, kind: TransactionKind):
       return jsonError(400, `asset_issuer does not match the ${assetCode} issuer of this anchor`);
     }
     const account = body.account?.trim() || auth.account;
+    if (!StrKey.isValidEd25519PublicKey(account)) return jsonError(400, 'account must be a valid Stellar G... address');
     if (account !== auth.account) return jsonError(403, 'account must match the SEP-10 authenticated account');
 
     const memo = body.memo?.trim() || auth.memo || undefined;

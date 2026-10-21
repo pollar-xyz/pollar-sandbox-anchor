@@ -53,7 +53,7 @@ describe('formatAmount', () => {
 });
 
 describe('serializeTransaction', () => {
-  it('maps a completed deposit like the real anchor', () => {
+  it('maps a completed deposit like the real anchor, omitting unknown fields', () => {
     const out = serializeTransaction(
       row({
         status: 'completed',
@@ -81,12 +81,8 @@ describe('serializeTransaction', () => {
       completed_at: '2026-10-20T12:05:00.000Z',
       stellar_transaction_id: 'abc',
       external_transaction_id: 'DEP-1',
-      message: null,
       refunded: false,
-      from: null,
       to: 'GABC',
-      deposit_memo: null,
-      deposit_memo_type: null,
       external_extra: '1234|ARS.SANDBOX.POLLAR|POLLAR SANDBOX SA|Banco Sandbox',
       external_extra_text: 'Transferi...',
     });

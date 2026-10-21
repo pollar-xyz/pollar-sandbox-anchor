@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       ] as const) {
         target[code] = {
           enabled: true,
-          authentication_required: true,
           min_amount: Number(cfg.min),
           max_amount: Number(cfg.max),
           fee_fixed: Number(cfg.fee_fixed),

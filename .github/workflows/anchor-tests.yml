@@ -1,0 +1,19 @@
+name: SDF anchor tests
+
+# Runs the official stellar-anchor-tests suite against the deployed sandbox.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'
+
+jobs:
+  anchor-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        asset: [ARS, PEN]
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npx -y @stellar/anchor-tests@latest --home-domain https://sandbox-anchor.pollar.xyz --seps 1 10 24 --asset-code ${{ matrix.asset }}

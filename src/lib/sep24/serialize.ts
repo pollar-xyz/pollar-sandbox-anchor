@@ -63,8 +63,9 @@ export function serializeTransaction(tx: Transaction): Sep24Transaction {
     external_transaction_id: tx.external_transaction_id,
     message: tx.message,
     refunded: tx.refunded,
-    from: tx.from,
-    to: tx.to,
+    // The Stellar side is the user's account from the start; the bank side stays unknown until the transfer.
+    from: tx.from ?? (tx.kind === 'withdrawal' ? tx.account : null),
+    to: tx.to ?? (tx.kind === 'deposit' ? tx.account : null),
   };
   if (tx.user_action_required_by) out.user_action_required_by = tx.user_action_required_by.toISOString();
   if (tx.refunds) out.refunds = tx.refunds as unknown as Sep24Refunds;
@@ -78,6 +79,10 @@ export function serializeTransaction(tx: Transaction): Sep24Transaction {
     if (tx.withdraw_anchor_account) out.withdraw_anchor_account = tx.withdraw_anchor_account;
     if (tx.withdraw_memo) out.withdraw_memo = tx.withdraw_memo;
     if (tx.withdraw_memo_type) out.withdraw_memo_type = tx.withdraw_memo_type;
+  }
+  // SEP-24 schemas reject null for optional fields: an unknown value is omitted, not sent as null.
+  for (const key of Object.keys(out) as (keyof Sep24Transaction)[]) {
+    if (out[key] === null) delete out[key];
   }
   return out;
 }
