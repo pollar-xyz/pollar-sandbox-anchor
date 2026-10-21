@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountRole {
+  SIGNING
+  ISSUER_ARS
+  ISSUER_PEN
+  DISTRIBUTION
+  WITHDRAW
+  LIQUIDITY
+}
+
+/// Every keypair the anchor controls. A testnet reset wipes them on-chain, so a re-bootstrap
+/// retires the current generation (active = false) and creates a new one.
+model AnchorAccount {
+  id          String      @id @default(uuid())
+  role        AccountRole
+  public_key  String      @unique
+  secret_enc  String
+  label       String?
+  generation  Int
+  active      Boolean     @default(true)
+  created_at  DateTime    @default(now())
+
+  sozu_claims SozuClaim[]
+
+  @@index([role, active])
+}
+
+/// Admin-editable configuration (rates, spread, fees, limits). Defaults live in src/lib/settings.ts.
+model Setting {
+  key        String   @id
+  value      Json
+  updated_at DateTime @updatedAt
+  updated_by String?
+}
+
+enum TransactionKind {
+  deposit
+  withdrawal
+}
+
+/// SEP-24 transaction. Column names follow the SEP-24 response fields so the API maps them 1:1.
+model Transaction {
+  id                      String          @id @default(uuid())
+  kind                    TransactionKind
+  status                  String
+  asset_code              String
+  account                 String
+  memo                    String?
+  memo_type               String?
+  lang                    String?
+  client_domain           String?
+  amount_expected         Decimal?        @db.Decimal(20, 7)
+  amount_in               Decimal?        @db.Decimal(20, 7)
+  amount_out              Decimal?        @db.Decimal(20, 7)
+  amount_fee              Decimal?        @db.Decimal(20, 7)
+  started_at              DateTime        @default(now())
+  updated_at              DateTime        @updatedAt
+  completed_at            DateTime?
+  user_action_required_by DateTime?
+  stellar_transaction_id  String?
+  external_transaction_id String?
+  from                    String?
+  to                      String?
+  message                 String?
+  refunded                Boolean         @default(false)
+  refunds                 Json?
+  deposit_memo            String?
+  deposit_memo_type       String?
+  withdraw_anchor_account String?
+  withdraw_memo           String?         @unique
+  withdraw_memo_type      String?
+  external_extra          String?
+  external_extra_text     String?
+  /// Bank details the user typed in the interactive flow (withdrawal destination).
+  destination             Json?
+  /// Outcome forced by a magic amount, applied when the flow reaches the matching step.
+  forced_outcome          String?
+
+  events TransactionEvent[]
+
+  @@index([account, asset_code, started_at])
+  @@index([status])
+}
+
+/// Audit trail of every status change, including admin overrides.
+model TransactionEvent {
+  id             String      @id @default(uuid())
+  transaction_id String
+  transaction    Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+  from_status    String?
+  to_status      String
+  actor          String
+  note           String?
+  created_at     DateTime    @default(now())
+
+  @@index([transaction_id, created_at])
+}
+
+/// Simulated KYC, one per Stellar account.
+model KycProfile {
+  account     String    @id
+  data        Json
+  approved_at DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+}
+
+/// Testnet USDC claims against the Sozu faucet, so the admin can show cooldowns.
+model SozuClaim {
+  id                String        @id @default(uuid())
+  account_id        String
+  account           AnchorAccount @relation(fields: [account_id], references: [id])
+  status            String
+  amount            Decimal?      @db.Decimal(20, 7)
+  tx_hash           String?
+  reason            String?
+  next_available_at DateTime?
+  created_at        DateTime      @default(now())
+
+  @@index([account_id, created_at])
+}
+
+/// Cursors for long-running streams (Horizon payments watcher).
+model StreamCursor {
+  key        String   @id
+  cursor     String
+  updated_at DateTime @updatedAt
+}
