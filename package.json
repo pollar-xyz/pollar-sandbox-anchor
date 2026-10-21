@@ -19,7 +19,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "cli": "tsx scripts/anchor-cli.mts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -42,6 +43,7 @@
     "prettier-plugin-tailwindcss": "^0.8.0",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^4.0.0"
   }
