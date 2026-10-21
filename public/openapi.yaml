@@ -1,0 +1,183 @@
+openapi: 3.1.0
+info:
+  title: Pollar Sandbox Anchor
+  version: 0.1.0
+  description: >
+    Public Stellar testnet anchor for ARS and PEN (SEP-1, SEP-10, SEP-24). Behaves like a real Latin American fiat
+    anchor so wallets can test ramps end to end. No real money moves. Not affiliated with any real anchor.
+  license:
+    name: Apache-2.0
+servers:
+  - url: https://sandbox-anchor.pollar.xyz
+components:
+  securitySchemes:
+    sep10:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    Transaction:
+      type: object
+      description: SEP-24 transaction object. Amounts are strings with 2 decimals.
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [deposit, withdrawal] }
+        status:
+          type: string
+          enum:
+            [
+              incomplete,
+              pending_user_transfer_start,
+              pending_anchor,
+              completed,
+              error,
+              refunded,
+              expired,
+              too_small,
+              too_large,
+              no_market,
+            ]
+        status_eta: { type: integer }
+        more_info_url: { type: string }
+        amount_in: { type: [string, 'null'] }
+        amount_out: { type: [string, 'null'] }
+        amount_fee: { type: [string, 'null'] }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        stellar_transaction_id: { type: [string, 'null'] }
+        external_transaction_id: { type: [string, 'null'] }
+        from: { type: [string, 'null'] }
+        to: { type: [string, 'null'] }
+        message: { type: [string, 'null'] }
+        refunded: { type: boolean }
+        withdraw_anchor_account:
+          type: string
+          description: Withdrawals only. Present once the user submitted the interactive form.
+        withdraw_memo: { type: string, description: 32 bytes, base64. }
+        withdraw_memo_type: { type: string, enum: [hash] }
+        external_extra: { type: string, description: Deposits only. Bank ticket data. }
+        external_extra_text: { type: string }
+paths:
+  /.well-known/stellar.toml:
+    get:
+      summary: SEP-1 stellar.toml
+      responses:
+        '200': { description: TOML document, content: { text/plain: {} } }
+  /auth:
+    get:
+      summary: SEP-10 challenge
+      parameters:
+        - { name: account, in: query, required: true, schema: { type: string } }
+        - { name: memo, in: query, schema: { type: string } }
+        - { name: home_domain, in: query, schema: { type: string } }
+        - { name: client_domain, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Challenge transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction: { type: string }
+                  network_passphrase: { type: string }
+    post:
+      summary: SEP-10 token
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { transaction: { type: string } }, required: [transaction] }
+      responses:
+        '200':
+          description: JWT
+          content: { application/json: { schema: { type: object, properties: { token: { type: string } } } } }
+        '400':
+          { description: Invalid challenge, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /transfer24/info:
+    get:
+      summary: SEP-24 assets, limits and fees
+      responses:
+        '200': { description: Info object }
+  /transfer24/transactions/deposit/interactive:
+    post:
+      summary: Start a deposit (on-ramp)
+      security: [{ sep10: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [asset_code]
+              properties:
+                asset_code: { type: string, enum: [ARS, PEN] }
+                account: { type: string }
+                amount: { type: string }
+                memo: { type: string }
+                memo_type: { type: string }
+                lang: { type: string }
+      responses:
+        '200':
+          description: Interactive URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type: { type: string, enum: [interactive_customer_info_needed] }
+                  url: { type: string }
+                  id: { type: string }
+  /transfer24/transactions/withdraw/interactive:
+    post:
+      summary: Start a withdrawal (off-ramp)
+      security: [{ sep10: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [asset_code]
+              properties:
+                asset_code: { type: string, enum: [ARS, PEN] }
+                account: { type: string }
+                amount: { type: string }
+                lang: { type: string }
+      responses:
+        '200': { description: Interactive URL (same shape as deposit) }
+  /transfer24/transaction:
+    get:
+      summary: One transaction
+      security: [{ sep10: [] }]
+      parameters:
+        - { name: id, in: query, schema: { type: string } }
+        - { name: stellar_transaction_id, in: query, schema: { type: string } }
+        - { name: external_transaction_id, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Transaction
+          content:
+            application/json:
+              schema: { type: object, properties: { transaction: { $ref: '#/components/schemas/Transaction' } } }
+        '404': { description: Not found }
+  /transfer24/transactions:
+    get:
+      summary: Transaction history of the authenticated account
+      security: [{ sep10: [] }]
+      parameters:
+        - { name: asset_code, in: query, required: true, schema: { type: string } }
+        - { name: kind, in: query, schema: { type: string, enum: [deposit, withdrawal] } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: no_older_than, in: query, schema: { type: string, format: date-time } }
+        - { name: paging_id, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Transactions, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions: { type: array, items: { $ref: '#/components/schemas/Transaction' } }
