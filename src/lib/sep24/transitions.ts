@@ -269,7 +269,7 @@ export function depositTicket(id: string, code: FiatCode, amountIn: string): Dep
     holder: BANK_HOLDER,
     bankName: meta.bankName,
     ref,
-    externalExtra: `${bankAccount}|${meta.alias}|${BANK_HOLDER}|${meta.bankName}`,
+    externalExtra: `${bankAccount}|${meta.alias}|${BANK_HOLDER}|${meta.bankName}|${ref}`,
     externalExtraText,
   };
 }
