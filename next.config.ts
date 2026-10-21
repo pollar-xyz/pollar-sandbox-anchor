@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // The parent folder holds other pnpm projects; pin the root so Next does not pick their lockfile.
+  turbopack: { root: import.meta.dirname },
+  outputFileTracingRoot: import.meta.dirname,
   serverExternalPackages: ['@stellar/stellar-sdk', 'pg'],
   async headers() {
     // SEP-1 requires the TOML to be readable cross-origin; SEP-10/24 clients are browser wallets too.
