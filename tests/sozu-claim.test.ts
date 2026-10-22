@@ -7,11 +7,24 @@ const create = vi.fn();
 vi.mock('@/lib/db', () => ({
   db: () => ({ anchorAccount: { findUnique }, sozuClaim: { findFirst, create } }),
 }));
-vi.mock('@/lib/env', () => ({ env: () => ({ SOZU_FAUCET_URL: 'https://faucet.test' }) }));
-vi.mock('@/lib/liquidity/sozu', () => ({ requestSozuClaim: vi.fn() }));
+vi.mock('@/lib/env', () => ({
+  env: () => ({
+    SOZU_FAUCET_URL: 'https://faucet.test',
+    USDC_ISSUER: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+  }),
+}));
+vi.mock('@/lib/liquidity/sozu', () => ({ requestSozuClaim: vi.fn(), SOZU_COOLDOWN_MS: 3_600_000 }));
+vi.mock('@/lib/liquidity/onchain', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/liquidity/onchain')>()),
+  loadAccountOrNull: vi.fn(async () => ({})),
+  balanceOf: vi.fn(),
+}));
 
-const { claimSozuUsdc } = await import('@/lib/liquidity');
+const { claimSozuUsdc, SOZU_RECONCILE } = await import('@/lib/liquidity');
 const { requestSozuClaim } = await import('@/lib/liquidity/sozu');
+const { balanceOf } = await import('@/lib/liquidity/onchain');
+SOZU_RECONCILE.attempts = 2;
+SOZU_RECONCILE.delayMs = 1;
 
 const wallet = { id: 'w1', role: 'LIQUIDITY', active: true, public_key: 'GWALLET' };
 
@@ -19,6 +32,7 @@ describe('claimSozuUsdc', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     findUnique.mockResolvedValue(wallet);
+    vi.mocked(balanceOf).mockReturnValue('100.0000000');
   });
 
   it('short-circuits while the last claim is cooling down', async () => {
@@ -45,6 +59,33 @@ describe('claimSozuUsdc', () => {
     expect(requestSozuClaim).toHaveBeenCalledWith({ to: 'GWALLET', url: 'https://faucet.test' });
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({ account_id: 'w1', status: 'success', amount: '100', tx_hash: 'hash1' }),
+    });
+  });
+
+  it('applies a one hour cooldown when the faucet does not state one', async () => {
+    findFirst.mockResolvedValue(null);
+    vi.mocked(requestSozuClaim).mockResolvedValue({
+      ok: true,
+      amount: '100',
+      txHash: 'hash1',
+      reason: null,
+      error: null,
+      nextAvailableAt: null,
+    });
+    const before = Date.now();
+    await claimSozuUsdc('w1');
+    const next = vi.mocked(create).mock.calls[0]![0].data.next_available_at as Date;
+    expect(next.getTime()).toBeGreaterThanOrEqual(before + 3_600_000);
+  });
+
+  it('records a success when the claim times out but the USDC arrived', async () => {
+    findFirst.mockResolvedValue(null);
+    vi.mocked(balanceOf).mockReturnValueOnce('100.0000000').mockReturnValue('200.0000000');
+    vi.mocked(requestSozuClaim).mockRejectedValue(new Error('The operation was aborted due to timeout'));
+    const out = await claimSozuUsdc('w1');
+    expect(out).toEqual({ ok: true, amount: '100.0000000', txHash: null });
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: 'success', amount: '100.0000000', next_available_at: expect.any(Date) }),
     });
   });
 

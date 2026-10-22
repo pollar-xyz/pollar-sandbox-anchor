@@ -3,7 +3,17 @@
 import { type ActionResult, runAdminAction } from '@/lib/admin/action-result';
 import { isSettingKey, parseSettingForm } from '@/lib/admin/settings-form';
 import { isFiatCode } from '@/lib/assets';
-import { bootstrap, claimSozuUsdc, createLiquidityWallet, mintToLiquidity, publishOffers, rebootstrap } from '@/lib/liquidity';
+import { AccountRole } from '@prisma/client';
+import { listActiveAccounts } from '@/lib/accounts';
+import {
+  bootstrap,
+  claimSozuUsdc,
+  consolidateUsdc,
+  createLiquidityWallet,
+  mintToLiquidity,
+  publishOffers,
+  rebootstrap,
+} from '@/lib/liquidity';
 import { setSetting } from '@/lib/settings';
 import { expireStale, forceStatus, markDepositReceived } from '@/lib/sep24/transitions';
 import { SEP24_STATUSES } from './statuses';
@@ -32,6 +42,10 @@ export async function rebootstrapAction(_prev: ActionResult | null, formData: Fo
 
 export async function createLiquidityWalletAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   return runAdminAction(async (admin) => {
+    const existing = await listActiveAccounts(AccountRole.LIQUIDITY);
+    if (existing.length > 0 && text(formData, 'confirmExtra') !== 'on') {
+      return { ok: false, message: 'Ya hay una wallet de liquidez. Marcá la casilla si igual querés otra.' };
+    }
     const account = await createLiquidityWallet(`admin:${admin.email}`, text(formData, 'label') || undefined);
     return `Wallet creada: ${account.public_key}`;
   });
@@ -56,6 +70,16 @@ export async function sozuClaimAction(_prev: ActionResult | null, formData: Form
     if (result.ok) return `Recibidos ${result.amount} USDC${result.txHash ? `. Tx: ${result.txHash}` : ''}`;
     const next = result.nextAvailableAt ? ` Próximo intento: ${result.nextAvailableAt.toISOString()}` : '';
     return { ok: false, message: `Sozu rechazó el claim: ${result.reason}.${next}` };
+  });
+}
+
+export async function consolidateUsdcAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  return runAdminAction(async (admin) => {
+    const fromId = text(formData, 'accountId');
+    const toId = text(formData, 'targetId');
+    if (!fromId || !toId) return { ok: false, message: 'Elegí la wallet de destino.' };
+    const { amount, txHash } = await consolidateUsdc(fromId, toId, `admin:${admin.email}`);
+    return `Movidos ${amount} USDC. Tx: ${txHash}`;
   });
 }
 

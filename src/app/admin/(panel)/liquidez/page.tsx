@@ -7,7 +7,13 @@ import { getLiquidityStatus } from '@/lib/liquidity';
 import { getSettings } from '@/lib/settings';
 import { ActionForm } from '../../_components/action-form';
 import { AssetLabel, Badge, Card, ErrorBox, Field, formatDate, inputClass, PageHeader, PublicKey } from '../../_components/ui';
-import { createLiquidityWalletAction, mintAction, publishOffersAction, sozuClaimAction } from '../actions';
+import {
+  consolidateUsdcAction,
+  createLiquidityWalletAction,
+  mintAction,
+  publishOffersAction,
+  sozuClaimAction,
+} from '../actions';
 
 export default async function LiquidityPage() {
   await requireAdmin();
@@ -42,10 +48,23 @@ export default async function LiquidityPage() {
             </Card>
 
             <Card title="Generar wallet de liquidez">
+              {wallets.length > 0 && (
+                <p className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  Ya hay {wallets.length === 1 ? 'una wallet' : `${wallets.length} wallets`} de liquidez y con una alcanza: ARS
+                  y PEN se emiten sin límite y el USDC se carga en la misma wallet una vez por hora. Otra wallet solo duplica
+                  las ofertas, y no sirve para saltear el cooldown de Sozu.
+                </p>
+              )}
               <ActionForm action={createLiquidityWalletAction} submitLabel="Generar wallet">
                 <Field label="Etiqueta (opcional)">
                   <input name="label" maxLength={60} className={inputClass} />
                 </Field>
+                {wallets.length > 0 && (
+                  <label className="mt-2 flex items-center gap-2 text-xs">
+                    <input type="checkbox" name="confirmExtra" />
+                    Crear otra wallet igual
+                  </label>
+                )}
               </ActionForm>
             </Card>
           </div>
@@ -107,6 +126,22 @@ export default async function LiquidityPage() {
                     <ActionForm action={publishOffersAction} submitLabel="Republicar ofertas" variant="secondary">
                       <input type="hidden" name="accountId" value={account.id} />
                     </ActionForm>
+                    {wallets.length > 1 && (
+                      <ActionForm action={consolidateUsdcAction} submitLabel="Pasar todo el USDC" variant="secondary">
+                        <input type="hidden" name="accountId" value={account.id} />
+                        <Field label="A la wallet">
+                          <select name="targetId" className={inputClass}>
+                            {wallets
+                              .filter((w) => w.account.id !== account.id)
+                              .map((w) => (
+                                <option key={w.account.id} value={w.account.id}>
+                                  {w.account.label || `${w.account.public_key.slice(0, 6)}...${w.account.public_key.slice(-4)}`}
+                                </option>
+                              ))}
+                          </select>
+                        </Field>
+                      </ActionForm>
+                    )}
                   </div>
                 </div>
               </Card>

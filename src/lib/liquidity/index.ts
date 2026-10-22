@@ -20,7 +20,7 @@ import {
   replaceOffers,
 } from './onchain';
 import { type BookCode, OFFER_PAIRS, planOffers } from './pricing';
-import { requestSozuClaim } from './sozu';
+import { requestSozuClaim, SOZU_COOLDOWN_MS } from './sozu';
 
 // Contract for anchor bootstrap and DEX liquidity (F2, F3), used by the admin (F7).
 
@@ -196,6 +196,30 @@ export async function mintToLiquidity(accountId: string, asset: FiatCode, amount
   return sendPayment({ from: await issuerKeypair(asset), to: account.public_key, asset: fiat, amount });
 }
 
+async function usdcBalance(publicKey: string): Promise<bigint> {
+  const account = await loadAccountOrNull(publicKey);
+  const balance = account ? balanceOf(account, usdcAsset()) : null;
+  return balance === null ? 0n : toStroops(balance);
+}
+
+/** How long a failed claim keeps checking Horizon for the payment. Exported so tests can shorten it. */
+export const SOZU_RECONCILE = { attempts: 6, delayMs: 5000 };
+
+/** USDC that reached `publicKey` above `before`, checked a few times so a payment still in flight is seen. */
+async function usdcReceived(publicKey: string, before: bigint): Promise<bigint> {
+  const { attempts, delayMs } = SOZU_RECONCILE;
+  for (let i = 0; i < attempts; i++) {
+    const received = (await usdcBalance(publicKey)) - before;
+    if (received > 0n) return received;
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return 0n;
+}
+
+function cooldownFrom(next: Date | null): Date {
+  return next ?? new Date(Date.now() + SOZU_COOLDOWN_MS);
+}
+
 export async function claimSozuUsdc(accountId: string): Promise<SozuClaimResult> {
   const account = await requireLiquidityAccount(accountId);
   const last = await db().sozuClaim.findFirst({ where: { account_id: account.id }, orderBy: { created_at: 'desc' } });
@@ -203,15 +227,33 @@ export async function claimSozuUsdc(accountId: string): Promise<SozuClaimResult>
     return { ok: false, reason: 'cooldown', nextAvailableAt: last.next_available_at };
   }
 
+  const before = await usdcBalance(account.public_key);
   let outcome: Awaited<ReturnType<typeof requestSozuClaim>>;
   try {
     outcome = await requestSozuClaim({ to: account.public_key, url: env().SOZU_FAUCET_URL });
   } catch (err) {
     const reason = `error: ${err instanceof Error ? err.message : String(err)}`.slice(0, 500);
+    // The faucet pays before it answers, so a timeout or dropped connection can still mean USDC arrived.
+    const received = await usdcReceived(account.public_key, before);
+    if (received > 0n) {
+      const amount = fromStroops(received);
+      const nextAvailableAt = cooldownFrom(null);
+      await db().sozuClaim.create({
+        data: {
+          account_id: account.id,
+          status: 'success',
+          amount,
+          reason: `confirmed on Horizon after ${reason}`.slice(0, 500),
+          next_available_at: nextAvailableAt,
+        },
+      });
+      return { ok: true, amount, txHash: null };
+    }
     await db().sozuClaim.create({ data: { account_id: account.id, status: 'error', reason } });
     return { ok: false, reason, nextAvailableAt: null };
   }
 
+  const nextAvailableAt = outcome.ok ? cooldownFrom(outcome.nextAvailableAt) : outcome.nextAvailableAt;
   await db().sozuClaim.create({
     data: {
       account_id: account.id,
@@ -219,11 +261,37 @@ export async function claimSozuUsdc(accountId: string): Promise<SozuClaimResult>
       amount: outcome.amount,
       tx_hash: outcome.txHash,
       reason: outcome.ok ? null : [outcome.reason, outcome.error].filter(Boolean).join(': '),
-      next_available_at: outcome.nextAvailableAt,
+      next_available_at: nextAvailableAt,
     },
   });
   if (outcome.ok) return { ok: true, amount: outcome.amount ?? '0', txHash: outcome.txHash };
-  return { ok: false, reason: outcome.reason ?? 'unknown', nextAvailableAt: outcome.nextAvailableAt };
+  return { ok: false, reason: outcome.reason ?? 'unknown', nextAvailableAt };
+}
+
+/**
+ * Moves every USDC of one liquidity wallet to another and republishes both books.
+ * The source offers are cancelled first: USDC locked in a sell offer cannot be sent.
+ */
+export async function consolidateUsdc(
+  fromId: string,
+  toId: string,
+  actor: string,
+): Promise<{ amount: string; txHash: string }> {
+  if (fromId === toId) throw new Error('Source and target wallets are the same');
+  const [from, to] = await Promise.all([requireLiquidityAccount(fromId), requireLiquidityAccount(toId)]);
+  const fromKeypair = keypairOf(from);
+  await replaceOffers(fromKeypair, []);
+  const balance = await usdcBalance(from.public_key);
+  if (balance <= 0n) {
+    await publishOffers(from.id);
+    throw new Error(`${from.label ?? from.public_key} has no USDC`);
+  }
+  const amount = fromStroops(balance);
+  const txHash = await sendPayment({ from: fromKeypair, to: to.public_key, asset: usdcAsset(), amount });
+  log(actor, `moved ${amount} USDC from ${from.public_key} to ${to.public_key} (${txHash})`);
+  await publishOffers(from.id);
+  await publishOffers(to.id);
+  return { amount, txHash };
 }
 
 async function bookAssets(): Promise<Record<BookCode, Asset>> {

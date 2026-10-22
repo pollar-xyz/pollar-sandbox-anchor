@@ -7,6 +7,10 @@ export const DEFAULT_SOZU_URL = 'https://faucet.sozu.capital';
 export const SOZU_CLAIM_AMOUNT = '100';
 
 const HTTP_TIMEOUT_MS = 20_000;
+/** The faucet answers the claim only after its payment lands on-chain, which can take well over 20s. */
+const CLAIM_TIMEOUT_MS = 90_000;
+/** Cooldown per recipient address observed on the faucet, used when a response does not state one. */
+export const SOZU_COOLDOWN_MS = 60 * 60 * 1000;
 const POW_TIMEOUT_MS = 120_000;
 /** Hashes between yields to the event loop, so solving does not freeze the server. */
 const POW_BATCH = 20_000;
@@ -90,12 +94,13 @@ async function postJson<T>(
   fetchImpl: FetchLike,
   url: string,
   body: unknown,
+  timeoutMs = HTTP_TIMEOUT_MS,
 ): Promise<{ status: number; ok: boolean; body: T }> {
   const res = await fetchImpl(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const text = await res.text();
   let parsed: T;
@@ -150,7 +155,12 @@ export async function requestSozuClaim(input: {
 
   const nonce = await solvePow({ prefix, challengeId, to, difficulty, timeoutMs: input.powTimeoutMs });
 
-  const claim = await postJson<ClaimBody>(fetchImpl, `${base}/api/v1/faucet/claim`, { to, pow: { challengeId, nonce } });
+  const claim = await postJson<ClaimBody>(
+    fetchImpl,
+    `${base}/api/v1/faucet/claim`,
+    { to, pow: { challengeId, nonce } },
+    CLAIM_TIMEOUT_MS,
+  );
   if (!claim.ok || claim.body.success !== true) return failure(claim.body, claim.status);
   return {
     ok: true,
