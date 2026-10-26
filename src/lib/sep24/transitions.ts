@@ -6,7 +6,7 @@ import { fromStroops, isValidAmount, toStroops } from '../amount';
 import { FIAT_META, fiatAsset, isFiatCode, type FiatCode } from '../assets';
 import { db } from '../db';
 import { checkLimits, type Operation, quoteFee } from '../fees';
-import { MAGIC_AMOUNTS, magicOutcome } from '../magic';
+import { magicAmounts, magicOutcome } from '../magic';
 import { sendPayment } from '../payments';
 import { getSettings, type Settings } from '../settings';
 import { formatAmount, type Sep24Refunds } from './serialize';
@@ -206,8 +206,8 @@ async function enforceDailyCap(client: Client, tx: Transaction, code: FiatCode, 
   }
 }
 
-function outcomeMessage(status: string): string {
-  const found = Object.values(MAGIC_AMOUNTS).find((o) => o.status === status);
+function outcomeMessage(code: FiatCode, status: string): string {
+  const found = magicAmounts(code).find((o) => o.status === status);
   return found?.message ?? `Transaction ended as ${status}.`;
 }
 
@@ -219,7 +219,10 @@ function refundsFor(tx: Transaction, paymentId: string, idType: 'stellar' | 'ext
 /** Data that ends a transaction in its magic-amount outcome. */
 function forcedOutcomeData(tx: Transaction, paymentId: string, idType: 'stellar' | 'external') {
   const status = tx.forced_outcome!;
-  const data: Prisma.TransactionUpdateManyMutationInput = { message: outcomeMessage(status), forced_outcome: null };
+  const data: Prisma.TransactionUpdateManyMutationInput = {
+    message: outcomeMessage(tx.asset_code as FiatCode, status),
+    forced_outcome: null,
+  };
   if (status === 'refunded') {
     data.refunded = true;
     data.refunds = refundsFor(tx, paymentId, idType) as unknown as Prisma.InputJsonValue;
@@ -253,7 +256,7 @@ export interface DepositTicket {
 
 export function depositTicket(id: string, code: FiatCode, amountIn: string): DepositTicket {
   const meta = FIAT_META[code];
-  const bankAccount = digitsFrom(`account:${id}`, code === 'ARS' ? 22 : 20);
+  const bankAccount = digitsFrom(`account:${id}`, meta.bankDigits.max);
   const ref = digitsFrom(`ref:${id}`, 8);
   const amount = `${meta.symbol} ${fromStroops(toStroops(amountIn), 2)}`;
   const externalExtraText = [
@@ -321,7 +324,7 @@ export async function submitDepositAmount(id: string, amount: string): Promise<T
         amount_in: quote.amount_in,
         amount_fee: quote.amount_fee,
         amount_out: quote.amount_out,
-        forced_outcome: magicOutcome(value)?.status ?? null,
+        forced_outcome: magicOutcome(code, value)?.status ?? null,
         external_extra: ticket.externalExtra,
         external_extra_text: ticket.externalExtraText,
         to: tx.account,
@@ -420,9 +423,10 @@ function validateDestination(code: FiatCode, d: WithdrawDestination): WithdrawDe
   const holder = d.holder?.trim();
   const bankAccount = d.bankAccount?.replace(/[\s-]/g, '');
   const field = FIAT_META[code].bankField;
-  const length = code === 'ARS' ? 22 : 20;
+  const { min, max } = FIAT_META[code].bankDigits;
   if (!holder) throw new TransitionError('invalid_destination', 'Ingrese el titular de la cuenta');
-  if (!bankAccount || !new RegExp(`^\\d{${length}}$`).test(bankAccount)) {
+  if (!bankAccount || !new RegExp(`^\\d{${min},${max}}$`).test(bankAccount)) {
+    const length = min === max ? `${min}` : `entre ${min} y ${max}`;
     throw new TransitionError('invalid_destination', `El ${field} debe tener ${length} digitos`);
   }
   return { holder, bankAccount, bankName: d.bankName?.trim() || undefined };
@@ -451,7 +455,7 @@ export async function submitWithdrawDetails(
         amount_in: quote.amount_in,
         amount_fee: quote.amount_fee,
         amount_out: quote.amount_out,
-        forced_outcome: magicOutcome(value)?.status ?? null,
+        forced_outcome: magicOutcome(code, value)?.status ?? null,
         withdraw_anchor_account: withdrawAccount.public_key,
         withdraw_memo: randomBytes(32).toString('base64'),
         withdraw_memo_type: 'hash',

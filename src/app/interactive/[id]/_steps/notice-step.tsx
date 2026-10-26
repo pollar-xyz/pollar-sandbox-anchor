@@ -23,7 +23,7 @@ export function UnsupportedStep({ assetCode }: { assetCode: string }) {
   return (
     <>
       <CardHeader title="Asset no soportado" />
-      <p className="text-muted mt-6 text-center text-sm">Este anchor no opera {assetCode}. Solo ARS y PEN.</p>
+      <p className="text-muted mt-6 text-center text-sm">Este anchor no opera {assetCode}. Solo ARS, PEN y COP.</p>
     </>
   );
 }

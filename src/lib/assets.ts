@@ -3,7 +3,7 @@ import { Asset } from '@stellar/stellar-sdk';
 import { requireActiveAccount } from './accounts';
 import { env } from './env';
 
-export const FIAT_CODES = ['ARS', 'PEN'] as const;
+export const FIAT_CODES = ['ARS', 'PEN', 'COP'] as const;
 export type FiatCode = (typeof FIAT_CODES)[number];
 
 export function isFiatCode(code: string): code is FiatCode {
@@ -13,27 +13,51 @@ export function isFiatCode(code: string): code is FiatCode {
 export const ISSUER_ROLE: Record<FiatCode, AccountRole> = {
   ARS: AccountRole.ISSUER_ARS,
   PEN: AccountRole.ISSUER_PEN,
+  COP: AccountRole.ISSUER_COP,
 };
 
-export const FIAT_META: Record<
-  FiatCode,
-  { name: string; country: string; symbol: string; bankField: string; bankName: string; alias: string }
-> = {
+export interface FiatMeta {
+  name: string;
+  country: 'AR' | 'PE' | 'CO';
+  symbol: string;
+  bankField: string;
+  /** Digits a destination bank account must have. Colombia has no fixed-length interbank number. */
+  bankDigits: { min: number; max: number };
+  bankName: string;
+  alias: string;
+  timeZone: string;
+}
+
+export const FIAT_META: Record<FiatCode, FiatMeta> = {
   ARS: {
     name: 'Peso Digital Sandbox',
     country: 'AR',
     symbol: '$',
     bankField: 'CBU',
+    bankDigits: { min: 22, max: 22 },
     bankName: 'Banco Sandbox',
     alias: 'ARS.SANDBOX.POLLAR',
+    timeZone: 'America/Argentina/Buenos_Aires',
   },
   PEN: {
     name: 'Sol Digital Sandbox',
     country: 'PE',
     symbol: 'S/',
     bankField: 'CCI',
+    bankDigits: { min: 20, max: 20 },
     bankName: 'Banco Sandbox',
     alias: 'PEN.SANDBOX.POLLAR',
+    timeZone: 'America/Lima',
+  },
+  COP: {
+    name: 'Peso COP Sandbox',
+    country: 'CO',
+    symbol: '$',
+    bankField: 'Número de cuenta',
+    bankDigits: { min: 10, max: 16 },
+    bankName: 'Banco Sandbox',
+    alias: 'COP.SANDBOX.POLLAR',
+    timeZone: 'America/Bogota',
   },
 };
 

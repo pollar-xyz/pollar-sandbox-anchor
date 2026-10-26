@@ -3,14 +3,16 @@ import { fromStroops, toStroops } from '../amount';
 import type { Settings } from '../settings';
 import type { OfferPlan } from './onchain';
 
-export type BookCode = 'ARS' | 'PEN' | 'XLM' | 'USDC';
+export type BookCode = 'ARS' | 'PEN' | 'COP' | 'XLM' | 'USDC';
 
 /** Pairs quoted by every liquidity wallet, offered in both directions. */
 export const OFFER_PAIRS: ReadonlyArray<readonly [BookCode, BookCode]> = [
   ['ARS', 'XLM'],
   ['PEN', 'XLM'],
+  ['COP', 'XLM'],
   ['ARS', 'USDC'],
   ['PEN', 'USDC'],
+  ['COP', 'USDC'],
   ['XLM', 'USDC'],
 ];
 

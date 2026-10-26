@@ -8,10 +8,10 @@ import { getSettings } from '@/lib/settings';
 import { ActionForm } from '../../_components/action-form';
 import { AssetLabel, Badge, Card, ErrorBox, Field, formatDate, inputClass, PageHeader, PublicKey } from '../../_components/ui';
 import {
-  consolidateUsdcAction,
   createLiquidityWalletAction,
   mintAction,
   publishOffersAction,
+  retireLiquidityWalletAction,
   sozuClaimAction,
 } from '../actions';
 
@@ -50,9 +50,9 @@ export default async function LiquidityPage() {
             <Card title="Generar wallet de liquidez">
               {wallets.length > 0 && (
                 <p className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                  Ya hay {wallets.length === 1 ? 'una wallet' : `${wallets.length} wallets`} de liquidez y con una alcanza: ARS
-                  y PEN se emiten sin límite y el USDC se carga en la misma wallet una vez por hora. Otra wallet solo duplica
-                  las ofertas, y no sirve para saltear el cooldown de Sozu.
+                  Ya hay {wallets.length === 1 ? 'una wallet' : `${wallets.length} wallets`} de liquidez y con una alcanza: ARS,
+                  PEN y COP se emiten sin límite y el USDC se carga en la misma wallet una vez por hora. Otra wallet solo
+                  duplica las ofertas, y no sirve para saltear el cooldown de Sozu.
                 </p>
               )}
               <ActionForm action={createLiquidityWalletAction} submitLabel="Generar wallet">
@@ -127,7 +127,12 @@ export default async function LiquidityPage() {
                       <input type="hidden" name="accountId" value={account.id} />
                     </ActionForm>
                     {wallets.length > 1 && (
-                      <ActionForm action={consolidateUsdcAction} submitLabel="Pasar todo el USDC" variant="secondary">
+                      <ActionForm
+                        action={retireLiquidityWalletAction}
+                        submitLabel="Pasar todo y retirar"
+                        variant="danger"
+                        confirmMessage="Esta wallet se cierra en testnet y deja de publicar ofertas. ¿Continuar?"
+                      >
                         <input type="hidden" name="accountId" value={account.id} />
                         <Field label="A la wallet">
                           <select name="targetId" className={inputClass}>
@@ -139,6 +144,12 @@ export default async function LiquidityPage() {
                                 </option>
                               ))}
                           </select>
+                        </Field>
+                        <p className="text-muted mt-2 text-xs">
+                          Mueve todos los assets y el XLM a esa wallet, cancela sus ofertas y cierra esta cuenta en testnet.
+                        </p>
+                        <Field label="Escribí RETIRAR para confirmar">
+                          <input name="confirm" autoComplete="off" required pattern="RETIRAR" className={inputClass} />
                         </Field>
                       </ActionForm>
                     )}

@@ -1,20 +1,22 @@
 import { AccountRole, type AnchorAccount, type SozuClaim } from '@prisma/client';
-import { Asset, Keypair } from '@stellar/stellar-sdk';
+import { Asset, type Horizon, Keypair, Operation, type xdr } from '@stellar/stellar-sdk';
 import { currentGeneration, getActiveAccount, keypairOf, listActiveAccounts, storeAccount } from '../accounts';
 import { fromStroops, isValidAmount, toStroops } from '../amount';
 import { FIAT_CODES, type FiatCode, fiatAsset, ISSUER_ROLE, usdcAsset } from '../assets';
 import { db } from '../db';
 import { env } from '../env';
-import { sendPayment } from '../payments';
+import { sendPayment, submitOperations } from '../payments';
 import { getSettings } from '../settings';
 import { homeDomain } from '../stellar';
 import {
   assetKey,
   balanceOf,
   balancesOf,
+  cancelOfferOps,
   ensureHomeDomain,
   ensureTrustlines,
   fundWithFriendbot,
+  listOfferRecords,
   listOffers,
   loadAccountOrNull,
   replaceOffers,
@@ -59,15 +61,16 @@ export const CORE_ROLES = [
   AccountRole.SIGNING,
   AccountRole.ISSUER_ARS,
   AccountRole.ISSUER_PEN,
+  AccountRole.ISSUER_COP,
   AccountRole.DISTRIBUTION,
   AccountRole.WITHDRAW,
 ] as const;
 
 /** Stock DISTRIBUTION is topped up to on every bootstrap. Issuers can always mint more. */
-export const DISTRIBUTION_STOCK: Record<FiatCode, string> = { ARS: '100000000', PEN: '1000000' };
+export const DISTRIBUTION_STOCK: Record<FiatCode, string> = { ARS: '100000000', PEN: '1000000', COP: '1000000000' };
 
 /** Default stock minted to a new liquidity wallet. */
-export const LIQUIDITY_STOCK: Record<FiatCode, string> = { ARS: '50000000', PEN: '500000' };
+export const LIQUIDITY_STOCK: Record<FiatCode, string> = { ARS: '50000000', PEN: '500000', COP: '500000000' };
 
 function log(actor: string, message: string): void {
   console.info(`[liquidity] ${actor}: ${message}`);
@@ -80,7 +83,8 @@ async function issuerKeypair(code: FiatCode): Promise<Keypair> {
 }
 
 async function fiatAssets(): Promise<Record<FiatCode, Asset>> {
-  return { ARS: await fiatAsset('ARS'), PEN: await fiatAsset('PEN') };
+  const entries = await Promise.all(FIAT_CODES.map(async (code) => [code, await fiatAsset(code)] as const));
+  return Object.fromEntries(entries) as Record<FiatCode, Asset>;
 }
 
 /** Pays `code` from its issuer until `holder` holds at least `target`. Returns the hash, or null when already there. */
@@ -173,7 +177,7 @@ export async function createLiquidityWallet(
 
   await fundWithFriendbot(account.public_key, env().FRIENDBOT_URL);
   const assets = await fiatAssets();
-  await ensureTrustlines(keypair, [assets.ARS, assets.PEN, usdcAsset()]);
+  await ensureTrustlines(keypair, [...Object.values(assets), usdcAsset()]);
   for (const code of FIAT_CODES) {
     if (toStroops(stock[code]) > 0n) await mintToLiquidity(account.id, code, stock[code]);
   }
@@ -269,34 +273,49 @@ export async function claimSozuUsdc(accountId: string): Promise<SozuClaimResult>
 }
 
 /**
- * Moves every USDC of one liquidity wallet to another and republishes both books.
- * The source offers are cancelled first: USDC locked in a sell offer cannot be sent.
+ * Moves everything one liquidity wallet holds to another and closes it, so its offers stop for good.
+ * One transaction cancels its offers, pays every asset to the target, removes its trustlines and merges its XLM
+ * into the target: a failure leaves the wallet as it was. The row stays, inactive, to keep its Sozu history.
  */
-export async function consolidateUsdc(
+export async function retireLiquidityWallet(
   fromId: string,
   toId: string,
   actor: string,
-): Promise<{ amount: string; txHash: string }> {
+): Promise<{ moved: Balance[]; txHash: string | null }> {
   if (fromId === toId) throw new Error('Source and target wallets are the same');
   const [from, to] = await Promise.all([requireLiquidityAccount(fromId), requireLiquidityAccount(toId)]);
-  const fromKeypair = keypairOf(from);
-  await replaceOffers(fromKeypair, []);
-  const balance = await usdcBalance(from.public_key);
-  if (balance <= 0n) {
-    await publishOffers(from.id);
-    throw new Error(`${from.label ?? from.public_key} has no USDC`);
+  const onchain = await loadAccountOrNull(from.public_key);
+  let txHash: string | null = null;
+  let moved: Balance[] = [];
+  if (onchain) {
+    const fromKeypair = keypairOf(from);
+    const lines = onchain.balances.filter(
+      (b): b is Horizon.HorizonApi.BalanceLineAsset =>
+        b.asset_type === 'credit_alphanum4' || b.asset_type === 'credit_alphanum12',
+    );
+    const assets = lines.map((b) => new Asset(b.asset_code, b.asset_issuer));
+    await ensureTrustlines(keypairOf(to), assets);
+
+    const ops: xdr.Operation[] = [...cancelOfferOps(await listOfferRecords(from.public_key))];
+    lines.forEach((line, i) => {
+      if (toStroops(line.balance) > 0n) {
+        ops.push(Operation.payment({ destination: to.public_key, asset: assets[i], amount: line.balance }));
+      }
+      ops.push(Operation.changeTrust({ asset: assets[i], limit: '0' }));
+    });
+    ops.push(Operation.accountMerge({ destination: to.public_key }));
+    txHash = await submitOperations(fromKeypair, ops);
+    moved = balancesOf(onchain);
   }
-  const amount = fromStroops(balance);
-  const txHash = await sendPayment({ from: fromKeypair, to: to.public_key, asset: usdcAsset(), amount });
-  log(actor, `moved ${amount} USDC from ${from.public_key} to ${to.public_key} (${txHash})`);
-  await publishOffers(from.id);
+  await db().anchorAccount.update({ where: { id: from.id }, data: { active: false } });
+  log(actor, `retired liquidity wallet ${from.public_key} into ${to.public_key} (${txHash ?? 'not on-chain'})`);
   await publishOffers(to.id);
-  return { amount, txHash };
+  return { moved, txHash };
 }
 
 async function bookAssets(): Promise<Record<BookCode, Asset>> {
   const fiat = await fiatAssets();
-  return { ARS: fiat.ARS, PEN: fiat.PEN, XLM: Asset.native(), USDC: usdcAsset() };
+  return { ...fiat, XLM: Asset.native(), USDC: usdcAsset() };
 }
 
 /** Replaces the offers of one liquidity wallet (or all) using settings.rates. */

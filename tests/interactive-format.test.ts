@@ -45,6 +45,13 @@ describe('validateBankAccount', () => {
     expect(validateBankAccount('PEN', '3220001805007091710024')).toBe('El CCI debe tener 20 dígitos');
     expect(cleanBankAccount('002 193-0012')).toBe('0021930012');
   });
+
+  it('accepts a COP account number of 10 to 16 digits', () => {
+    expect(validateBankAccount('COP', '0123456789')).toBeNull();
+    expect(validateBankAccount('COP', '0123-4567-8901-2345')).toBeNull();
+    expect(validateBankAccount('COP', '012345678')).toBe('El Número de cuenta debe tener entre 10 y 16 dígitos');
+    expect(validateBankAccount('COP', '01234567890123456')).toBe('El Número de cuenta debe tener entre 10 y 16 dígitos');
+  });
 });
 
 describe('normalizeAmountInput', () => {

@@ -8,6 +8,7 @@ import { FIAT_META, type FiatCode } from '@/lib/assets';
 import { db } from '@/lib/db';
 import { checkLimits, quoteFee, type FeeQuote, type Operation } from '@/lib/fees';
 import { fakeKycDefaults, getKyc, isKycApproved, kycDataSchema } from '@/lib/kyc';
+import { magicAmounts } from '@/lib/magic';
 import { getSettings, type Settings } from '@/lib/settings';
 import { normalizeAmountInput } from '../_lib/amount-input';
 import { cleanBankAccount, currencySymbol, fiatOf, formatAmount, validateBankAccount } from '../_lib/format';
@@ -48,7 +49,11 @@ export default async function InteractivePage({
   if (tx.status !== 'incomplete') {
     const controls =
       tx.kind === 'deposit' && tx.status === 'pending_user_transfer_start' ? (
-        <SandboxControls id={id} autoReceiveSeconds={(await getSettings()).auto_receive_seconds} />
+        <SandboxControls
+          id={id}
+          magic={fiatOf(tx.asset_code) ? magicAmounts(fiatOf(tx.asset_code)!) : []}
+          autoReceiveSeconds={(await getSettings()).auto_receive_seconds}
+        />
       ) : undefined;
     return <TransactionView tx={tx} sandboxControls={controls} />;
   }
@@ -59,9 +64,7 @@ export default async function InteractivePage({
   const kyc = await getKyc(claims.account);
   if (!isKycApproved(kyc)) {
     const saved = kycDataSchema.safeParse(kyc?.data);
-    const defaults = saved.success
-      ? saved.data
-      : fakeKycDefaults(claims.account, FIAT_META[asset].country === 'PE' ? 'PE' : 'AR');
+    const defaults = saved.success ? saved.data : fakeKycDefaults(claims.account, FIAT_META[asset].country);
     return <KycStep id={id} defaults={defaults} />;
   }
 

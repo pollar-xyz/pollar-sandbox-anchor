@@ -4,10 +4,11 @@ import { toStroops } from '@/lib/amount';
 import { assetKey } from '@/lib/liquidity/onchain';
 import { type BookCode, offerPrice, planOffers } from '@/lib/liquidity/pricing';
 
-const rates = { ARS: '1450', PEN: '3.7', XLM: '4', spread_bps: 100 };
+const rates = { ARS: '1450', PEN: '3.7', COP: '4000', XLM: '4', spread_bps: 100 };
 const assets: Record<BookCode, Asset> = {
   ARS: new Asset('ARS', Keypair.random().publicKey()),
   PEN: new Asset('PEN', Keypair.random().publicKey()),
+  COP: new Asset('COP', Keypair.random().publicKey()),
   XLM: Asset.native(),
   USDC: new Asset('USDC', Keypair.random().publicKey()),
 };
@@ -55,6 +56,7 @@ describe('planOffers', () => {
   const balances: Record<BookCode, string | null> = {
     ARS: '1000000',
     PEN: '10000',
+    COP: null,
     XLM: '10000',
     USDC: '300',
   };
@@ -87,7 +89,7 @@ describe('planOffers', () => {
     // XLM keeps a 100 XLM fee reserve and splits across three directions.
     expect(amount('XLM', 'USDC')).toBe('2970.0000000');
 
-    for (const c of Object.keys(balances) as BookCode[]) {
+    for (const c of (Object.keys(balances) as BookCode[]).filter((c) => balances[c] !== null)) {
       const locked = plans.filter((p) => code(p.selling) === c).reduce((acc, p) => acc + toStroops(p.amount), 0n);
       expect(locked).toBeLessThanOrEqual((toStroops(balances[c]!) * 9n) / 10n);
     }
@@ -97,6 +99,16 @@ describe('planOffers', () => {
     const plans = planOffers({ rates, assets, balances: { ...balances, USDC: null, PEN: '0' } });
     const pairs = plans.map((p) => `${code(p.selling)}>${code(p.buying)}`).sort();
     expect(pairs).toEqual(['ARS>XLM', 'XLM>ARS', 'XLM>PEN']);
+  });
+
+  it('quotes COP against XLM and USDC once the wallet holds it', () => {
+    const plans = planOffers({ rates, assets, balances: { ...balances, COP: '40000000' } });
+    const pairs = plans.map((p) => `${code(p.selling)}>${code(p.buying)}`).filter((p) => p.includes('COP'));
+    expect(pairs.sort()).toEqual(['COP>USDC', 'COP>XLM', 'USDC>COP', 'XLM>COP']);
+    expect(Number(plans.find((p) => code(p.selling) === 'USDC' && code(p.buying) === 'COP')!.price)).toBeCloseTo(
+      4000 * 1.01,
+      6,
+    );
   });
 
   it('keeps the XLM reserve out of the book', () => {

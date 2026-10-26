@@ -26,6 +26,7 @@ export function KycStep({ id, defaults }: { id: string; defaults: KycData }) {
               <select id="id_type" name="id_type" defaultValue={defaults.id_type} className={inputClass}>
                 <option value="DNI">DNI</option>
                 <option value="CE">CE (Carné de Extranjería)</option>
+                <option value="CC">CC (Cédula de Ciudadanía)</option>
               </select>
             </div>
             <div>
@@ -40,6 +41,7 @@ export function KycStep({ id, defaults }: { id: string; defaults: KycData }) {
               >
                 <option value="AR">Argentina</option>
                 <option value="PE">Perú</option>
+                <option value="CO">Colombia</option>
               </select>
             </div>
           </div>

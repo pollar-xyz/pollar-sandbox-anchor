@@ -1,8 +1,9 @@
 // Operator CLI for self-hosters and local work, so the anchor can be bootstrapped before the admin login is configured.
 // Usage: pnpm cli <command> [args]
-//   status | bootstrap | rebootstrap | liquidity-wallet [label] | mint <accountId> <ARS|PEN> <amount>
+//   status | bootstrap | rebootstrap | liquidity-wallet [label] | mint <accountId> <ARS|PEN|COP> <amount>
 //   sozu <accountId> | offers [accountId] | depth
 import { existsSync } from 'node:fs';
+import type { FiatCode } from '../src/lib/assets';
 
 if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 
@@ -47,7 +48,7 @@ switch (command) {
     print(summarize([await liquidity.createLiquidityWallet(actor, args[0])]));
     break;
   case 'mint':
-    print({ txHash: await liquidity.mintToLiquidity(args[0], args[1] as 'ARS' | 'PEN', args[2]) });
+    print({ txHash: await liquidity.mintToLiquidity(args[0], args[1] as FiatCode, args[2]) });
     break;
   case 'sozu':
     print(await liquidity.claimSozuUsdc(args[0]));
@@ -60,7 +61,7 @@ switch (command) {
     break;
   default:
     console.error(
-      'Commands: status | bootstrap | rebootstrap | liquidity-wallet [label] | mint <id> <ARS|PEN> <amount> | sozu <id> | offers [id] | depth',
+      'Commands: status | bootstrap | rebootstrap | liquidity-wallet [label] | mint <id> <ARS|PEN|COP> <amount> | sozu <id> | offers [id] | depth',
     );
     process.exitCode = 1;
 }

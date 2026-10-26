@@ -1,24 +1,38 @@
-import { toStroops } from './amount';
+import { fromStroops, toStroops } from './amount';
+import type { FiatCode } from './assets';
+
+type MagicStatus = 'error' | 'refunded' | 'expired' | 'too_small' | 'too_large' | 'no_market';
+
+const BASE_AMOUNTS: Record<string, { status: MagicStatus; label: string }> = {
+  '13.13': { status: 'error', label: 'anchor error' },
+  '66.60': { status: 'refunded', label: 'refund' },
+  '77.70': { status: 'expired', label: 'expiration' },
+  '11.11': { status: 'too_small', label: 'too_small' },
+  '2999.99': { status: 'too_large', label: 'too_large' },
+  '55.55': { status: 'no_market', label: 'no_market' },
+};
+
+/** COP limits start at 10000, so its magic amounts are the base ones times 1000. */
+const SCALE: Record<FiatCode, bigint> = { ARS: 1n, PEN: 1n, COP: 1000n };
+
+export interface MagicAmount {
+  amount: string;
+  status: MagicStatus;
+  message: string;
+}
 
 /**
  * Amounts that force a terminal outcome, so integrators can exercise every failure path.
- * All of them sit inside both ARS and PEN limits. Published in /docs.
+ * All of them sit inside the asset's limits. Published in /docs.
  */
-export const MAGIC_AMOUNTS = {
-  '13.13': { status: 'error', message: 'Simulated anchor error (magic amount 13.13).' },
-  '66.60': { status: 'refunded', message: 'Simulated refund (magic amount 66.60).' },
-  '77.70': { status: 'expired', message: 'Simulated expiration (magic amount 77.70).' },
-  '11.11': { status: 'too_small', message: 'Simulated too_small (magic amount 11.11).' },
-  '2999.99': { status: 'too_large', message: 'Simulated too_large (magic amount 2999.99).' },
-  '55.55': { status: 'no_market', message: 'Simulated no_market (magic amount 55.55).' },
-} as const;
+export function magicAmounts(code: FiatCode): MagicAmount[] {
+  return Object.entries(BASE_AMOUNTS).map(([base, { status, label }]) => {
+    const amount = fromStroops(toStroops(base) * SCALE[code], 2);
+    return { amount, status, message: `Simulated ${label} (magic amount ${amount}).` };
+  });
+}
 
-export type ForcedOutcome = (typeof MAGIC_AMOUNTS)[keyof typeof MAGIC_AMOUNTS];
-
-export function magicOutcome(amountIn: string): ForcedOutcome | null {
+export function magicOutcome(code: FiatCode, amountIn: string): MagicAmount | null {
   const value = toStroops(amountIn);
-  for (const [magic, outcome] of Object.entries(MAGIC_AMOUNTS)) {
-    if (toStroops(magic) === value) return outcome;
-  }
-  return null;
+  return magicAmounts(code).find((m) => toStroops(m.amount) === value) ?? null;
 }

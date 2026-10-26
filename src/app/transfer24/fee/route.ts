@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const assetCode = params.get('asset_code') ?? '';
   const amount = params.get('amount') ?? '';
   if (operation !== 'deposit' && operation !== 'withdraw') return jsonError(400, 'operation must be deposit or withdraw');
-  if (!isFiatCode(assetCode)) return jsonError(400, 'asset_code must be ARS or PEN');
+  if (!isFiatCode(assetCode)) return jsonError(400, 'asset_code must be ARS, PEN or COP');
   if (!isValidAmount(amount)) return jsonError(400, 'amount must be a positive decimal');
   try {
     const quote = quoteFee(await getSettings(), assetCode, operation, amount);

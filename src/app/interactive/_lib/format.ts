@@ -39,15 +39,21 @@ export function parseExternalExtra(extra: string | null | undefined): DepositIns
   return { bankAccount: at(0), alias: at(1), holder: at(2), bankName: at(3), reference: at(4) };
 }
 
-export const BANK_ACCOUNT_DIGITS: Record<FiatCode, number> = { ARS: 22, PEN: 20 };
+/** "22" for a fixed length, "10 a 16" for a range. */
+export function bankDigitsLabel(asset: FiatCode): string {
+  const { min, max } = FIAT_META[asset].bankDigits;
+  return min === max ? `${min}` : `${min} a ${max}`;
+}
 
-/** Returns an error message, or null when the CBU (ARS) / CCI (PEN) is well formed. */
+/** Returns an error message, or null when the CBU (ARS) / CCI (PEN) / account number (COP) is well formed. */
 export function validateBankAccount(asset: FiatCode, value: string): string | null {
   const digits = value.replace(/[\s-]/g, '');
   const field = FIAT_META[asset].bankField;
-  const expected = BANK_ACCOUNT_DIGITS[asset];
+  const { min, max } = FIAT_META[asset].bankDigits;
   if (!/^\d+$/.test(digits)) return `El ${field} solo puede contener números`;
-  if (digits.length !== expected) return `El ${field} debe tener ${expected} dígitos`;
+  if (digits.length < min || digits.length > max) {
+    return min === max ? `El ${field} debe tener ${min} dígitos` : `El ${field} debe tener entre ${min} y ${max} dígitos`;
+  }
   return null;
 }
 
@@ -93,15 +99,13 @@ export function statusInfo(status: string, kind: 'deposit' | 'withdrawal'): { la
   }
 }
 
-const TIME_ZONES: Record<FiatCode, string> = { ARS: 'America/Argentina/Buenos_Aires', PEN: 'America/Lima' };
-
 export function formatDateTime(date: Date | null | undefined, assetCode: string): string | null {
   if (!date) return null;
   const fiat = fiatOf(assetCode);
   return new Intl.DateTimeFormat('es-AR', {
     dateStyle: 'short',
     timeStyle: 'medium',
-    timeZone: fiat ? TIME_ZONES[fiat] : 'UTC',
+    timeZone: fiat ? FIAT_META[fiat].timeZone : 'UTC',
   }).format(date);
 }
 

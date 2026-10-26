@@ -37,7 +37,7 @@ describe('settings form', () => {
   it('parses edited values with the right types', () => {
     const values = { ...formOf('rates'), 'rates.PEN': ' 3.85 ', 'rates.spread_bps': '250' };
     const result = parseSettingForm('rates', reader(values));
-    expect(result).toEqual({ ok: true, value: { ARS: '1450', PEN: '3.85', XLM: '4', spread_bps: 250 } });
+    expect(result).toEqual({ ok: true, value: { ARS: '1450', PEN: '3.85', COP: '4000', XLM: '4', spread_bps: 250 } });
   });
 
   it('reports invalid leaves by field name', () => {

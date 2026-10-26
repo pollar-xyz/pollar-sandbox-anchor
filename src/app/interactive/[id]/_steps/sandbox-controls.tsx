@@ -1,8 +1,16 @@
 import { ActionForm } from '@/components/anchor/action-form';
-import { MAGIC_AMOUNTS } from '@/lib/magic';
+import type { MagicAmount } from '@/lib/magic';
 import { simulateReceivedAction } from '../actions';
 
-export function SandboxControls({ id, autoReceiveSeconds }: { id: string; autoReceiveSeconds: number }) {
+export function SandboxControls({
+  id,
+  magic,
+  autoReceiveSeconds,
+}: {
+  id: string;
+  magic: MagicAmount[];
+  autoReceiveSeconds: number;
+}) {
   return (
     <section className="mt-6 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 px-4 py-5 text-sm text-amber-950 sm:px-6">
       <h2 className="font-semibold">Controles del sandbox</h2>
@@ -29,9 +37,9 @@ export function SandboxControls({ id, autoReceiveSeconds }: { id: string; autoRe
           Si el monto confirmado es uno de estos, la transacción termina en el estado indicado en lugar de completarse:
         </p>
         <ul className="mt-2 grid gap-1 font-mono text-xs sm:grid-cols-2">
-          {Object.entries(MAGIC_AMOUNTS).map(([amount, outcome]) => (
+          {magic.map(({ amount, status }) => (
             <li key={amount}>
-              {amount}: {outcome.status}
+              {amount}: {status}
             </li>
           ))}
         </ul>

@@ -3,7 +3,7 @@ info:
   title: Pollar Sandbox Anchor
   version: 0.1.0
   description: >
-    Public Stellar testnet anchor for ARS and PEN (SEP-1, SEP-10, SEP-24). Behaves like a real Latin American fiat
+    Public Stellar testnet anchor for ARS, PEN and COP (SEP-1, SEP-10, SEP-24). Behaves like a real Latin American fiat
     anchor so wallets can test ramps end to end. No real money moves. Not affiliated with any real anchor.
   license:
     name: Apache-2.0
@@ -113,7 +113,7 @@ paths:
               type: object
               required: [asset_code]
               properties:
-                asset_code: { type: string, enum: [ARS, PEN] }
+                asset_code: { type: string, enum: [ARS, PEN, COP] }
                 account: { type: string }
                 amount: { type: string }
                 memo: { type: string }
@@ -141,7 +141,7 @@ paths:
               type: object
               required: [asset_code]
               properties:
-                asset_code: { type: string, enum: [ARS, PEN] }
+                asset_code: { type: string, enum: [ARS, PEN, COP] }
                 account: { type: string }
                 amount: { type: string }
                 lang: { type: string }

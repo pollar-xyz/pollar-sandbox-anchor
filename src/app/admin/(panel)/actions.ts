@@ -8,11 +8,11 @@ import { listActiveAccounts } from '@/lib/accounts';
 import {
   bootstrap,
   claimSozuUsdc,
-  consolidateUsdc,
   createLiquidityWallet,
   mintToLiquidity,
   publishOffers,
   rebootstrap,
+  retireLiquidityWallet,
 } from '@/lib/liquidity';
 import { setSetting } from '@/lib/settings';
 import { expireStale, forceStatus, markDepositReceived } from '@/lib/sep24/transitions';
@@ -73,13 +73,14 @@ export async function sozuClaimAction(_prev: ActionResult | null, formData: Form
   });
 }
 
-export async function consolidateUsdcAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+export async function retireLiquidityWalletAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   return runAdminAction(async (admin) => {
     const fromId = text(formData, 'accountId');
     const toId = text(formData, 'targetId');
     if (!fromId || !toId) return { ok: false, message: 'Elegí la wallet de destino.' };
-    const { amount, txHash } = await consolidateUsdc(fromId, toId, `admin:${admin.email}`);
-    return `Movidos ${amount} USDC. Tx: ${txHash}`;
+    if (text(formData, 'confirm') !== 'RETIRAR') return { ok: false, message: 'Escribí RETIRAR para confirmar.' };
+    const { txHash } = await retireLiquidityWallet(fromId, toId, `admin:${admin.email}`);
+    return txHash ? `Wallet retirada y fondos movidos. Tx: ${txHash}` : 'La wallet no existía on-chain: quedó retirada.';
   });
 }
 

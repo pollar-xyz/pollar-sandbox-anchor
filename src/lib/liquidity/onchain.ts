@@ -110,19 +110,23 @@ export interface OfferPlan {
   price: string;
 }
 
+export function cancelOfferOps(records: Horizon.ServerApi.OfferRecord[]): xdr.Operation[] {
+  return records.map((o) =>
+    Operation.manageSellOffer({
+      selling: assetFromRecord(o.selling),
+      buying: assetFromRecord(o.buying),
+      amount: '0',
+      price: o.price_r,
+      offerId: String(o.id),
+    }),
+  );
+}
+
 /** Cancels every open offer of the account and creates `plans`, atomically. Returns the hash, or null when there was nothing to do. */
 export async function replaceOffers(keypair: Keypair, plans: OfferPlan[]): Promise<string | null> {
   const existing = await listOfferRecords(keypair.publicKey());
   const ops: xdr.Operation[] = [
-    ...existing.map((o) =>
-      Operation.manageSellOffer({
-        selling: assetFromRecord(o.selling),
-        buying: assetFromRecord(o.buying),
-        amount: '0',
-        price: o.price_r,
-        offerId: String(o.id),
-      }),
-    ),
+    ...cancelOfferOps(existing),
     ...plans.map((p) =>
       Operation.manageSellOffer({ selling: p.selling, buying: p.buying, amount: p.amount, price: p.price, offerId: '0' }),
     ),

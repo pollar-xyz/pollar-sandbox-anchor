@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Pollar Sandbox Anchor',
-  description: 'Stellar testnet anchor (SEP-1, SEP-10, SEP-24) for ARS and PEN ramps. No real money moves.',
+  description: 'Stellar testnet anchor (SEP-1, SEP-10, SEP-24) for ARS, PEN and COP ramps. No real money moves.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

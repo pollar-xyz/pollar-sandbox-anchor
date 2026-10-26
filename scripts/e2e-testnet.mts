@@ -1,6 +1,6 @@
 // End-to-end run against a live anchor on testnet: SEP-10, a deposit and a withdrawal, checked on-chain.
 // The hosted form steps are driven through the same transition functions the pages call.
-// Usage: pnpm e2e [baseUrl] [ARS|PEN]   (default http://localhost:3090, ARS)
+// Usage: pnpm e2e [baseUrl] [ARS|PEN|COP]   (default http://localhost:3090, ARS)
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
@@ -15,7 +15,10 @@ const transitions = await import('../src/lib/sep24/transitions');
 const { db } = await import('../src/lib/db');
 
 const base = (process.argv[2] ?? 'http://localhost:3090').replace(/\/$/, '');
-const code = (process.argv[3] ?? 'ARS') as 'ARS' | 'PEN';
+const code = (process.argv[3] ?? 'ARS') as 'ARS' | 'PEN' | 'COP';
+// COP limits start at 10000.
+const depositAmount = code === 'COP' ? '20000' : '200';
+const withdrawAmount = code === 'COP' ? '10000' : '100';
 const horizon = new Horizon.Server(process.env.HORIZON_URL ?? 'https://horizon-testnet.stellar.org');
 
 function log(step: string, data?: unknown) {
@@ -81,7 +84,7 @@ const dep = await json(
   }),
 );
 log('deposit started', { id: dep.id, url: dep.url.slice(0, 60) + '...' });
-await transitions.submitDepositAmount(dep.id, '200');
+await transitions.submitDepositAmount(dep.id, depositAmount);
 const ticket = await poll(token, dep.id, (s) => s === 'pending_user_transfer_start');
 log('deposit ticket', { external_extra: ticket.external_extra, amount_out: ticket.amount_out });
 await transitions.markDepositReceived(dep.id, 'user');
@@ -98,14 +101,14 @@ const wd = await json(
   await fetch(`${base}/transfer24/transactions/withdraw/interactive`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ asset_code: code, amount: '100' }),
+    body: JSON.stringify({ asset_code: code, amount: withdrawAmount }),
   }),
 );
 const before = (await poll(token, wd.id, () => true)) as Record<string, any>;
 log('withdraw incomplete hides anchor account', { withdraw_anchor_account: before.withdraw_anchor_account ?? null });
 await transitions.submitWithdrawDetails(wd.id, {
-  amount: '100',
-  destination: { holder: 'Juana Perez', bankAccount: code === 'ARS' ? '0'.repeat(22) : '0'.repeat(20) },
+  amount: withdrawAmount,
+  destination: { holder: 'Juana Perez', bankAccount: '0'.repeat({ ARS: 22, PEN: 20, COP: 16 }[code]) },
 });
 const instr = await poll(token, wd.id, (s) => s === 'pending_user_transfer_start');
 log('withdraw instructions', { to: instr.withdraw_anchor_account, memo: instr.withdraw_memo, amount_in: instr.amount_in });

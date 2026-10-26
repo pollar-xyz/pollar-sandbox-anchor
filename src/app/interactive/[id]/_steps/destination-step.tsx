@@ -1,6 +1,6 @@
 import Form from 'next/form';
 import Link from 'next/link';
-import { BANK_ACCOUNT_DIGITS } from '@/app/interactive/_lib/format';
+import { bankDigitsLabel } from '@/app/interactive/_lib/format';
 import { CardHeader } from '@/components/anchor/shell';
 import { inputClass, labelClass, primaryButton, secondaryLink } from '@/components/anchor/styles';
 import { FIAT_META, type FiatCode } from '@/lib/assets';
@@ -27,7 +27,7 @@ export function DestinationStep({
   backHref: string;
 }) {
   const field = FIAT_META[asset].bankField;
-  const digits = BANK_ACCOUNT_DIGITS[asset];
+  const digits = bankDigitsLabel(asset);
   return (
     <>
       <CardHeader title="Retiro" subtitle="¿A qué cuenta bancaria te enviamos el dinero?" />

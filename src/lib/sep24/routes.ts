@@ -16,7 +16,7 @@ export async function startInteractive(request: Request, kind: TransactionKind):
   try {
     const body = await readBody(request);
     const assetCode = body.asset_code ?? '';
-    if (!isFiatCode(assetCode)) return jsonError(400, 'asset_code must be ARS or PEN');
+    if (!isFiatCode(assetCode)) return jsonError(400, 'asset_code must be ARS, PEN or COP');
     if (body.asset_issuer && body.asset_issuer !== (await fiatAsset(assetCode)).getIssuer()) {
       return jsonError(400, `asset_issuer does not match the ${assetCode} issuer of this anchor`);
     }
@@ -81,7 +81,7 @@ export async function listTransactions(request: Request): Promise<NextResponse> 
   if (auth instanceof NextResponse) return auth;
   const params = new URL(request.url).searchParams;
   const assetCode = params.get('asset_code') ?? '';
-  if (!isFiatCode(assetCode)) return jsonError(400, 'asset_code must be ARS or PEN');
+  if (!isFiatCode(assetCode)) return jsonError(400, 'asset_code must be ARS, PEN or COP');
 
   const where: Prisma.TransactionWhereInput[] = [ownedBy(auth), { asset_code: assetCode }];
   const kind = params.get('kind');

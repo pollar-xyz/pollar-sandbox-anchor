@@ -128,6 +128,7 @@ const fakeDb = {
 const keys = {
   ISSUER_ARS: Keypair.random().publicKey(),
   ISSUER_PEN: Keypair.random().publicKey(),
+  ISSUER_COP: Keypair.random().publicKey(),
   WITHDRAW: Keypair.random().publicKey(),
   DISTRIBUTION: Keypair.random().publicKey(),
 };
@@ -324,6 +325,27 @@ function paymentFor(
 }
 
 describe('withdrawal', () => {
+  it('takes a COP account number of 10 to 16 digits', async () => {
+    const created = await t.createTransaction({ kind: 'withdrawal', assetCode: 'COP', account: USER });
+    const destination = { holder: 'Ana', bankAccount: '0123456789' };
+    const tx = await t.submitWithdrawDetails(created.id, { amount: '20000', destination });
+    expect([tx.status, tx.to, tx.amount_fee?.toString()]).toEqual(['pending_user_transfer_start', '0123456789', '1400']);
+
+    const short = await t.createTransaction({ kind: 'withdrawal', assetCode: 'COP', account: USER });
+    await expect(
+      t.submitWithdrawDetails(short.id, { amount: '20000', destination: { holder: 'Ana', bankAccount: '123456789' } }),
+    ).rejects.toThrow('El Número de cuenta debe tener entre 10 y 16 digitos');
+  });
+
+  it('applies the scaled COP magic amount', async () => {
+    const created = await t.createTransaction({ kind: 'deposit', assetCode: 'COP', account: USER });
+    const ticket = await t.submitDepositAmount(created.id, '13130');
+    expect(ticket.forced_outcome).toBe('error');
+    expect(ticket.external_extra!.split('|')[0]).toMatch(/^\d{16}$/);
+    const done = await t.markDepositReceived(created.id, 'user');
+    expect([done.status, done.message]).toEqual(['error', 'Simulated anchor error (magic amount 13130.00).']);
+  });
+
   it('assigns the withdraw account and a 32-byte hash memo only after the form', async () => {
     const created = await t.createTransaction({ kind: 'withdrawal', assetCode: 'ARS', account: USER });
     expect(created.withdraw_anchor_account).toBeNull();

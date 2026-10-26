@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { fromStroops, toStroops } from '@/lib/amount';
 import { checkLimits, quoteFee } from '@/lib/fees';
-import { magicOutcome } from '@/lib/magic';
+import { FIAT_CODES } from '@/lib/assets';
+import { magicAmounts, magicOutcome } from '@/lib/magic';
 import { DEFAULT_SETTINGS } from '@/lib/settings';
 
 describe('amount', () => {
@@ -39,15 +40,25 @@ describe('fees', () => {
 
 describe('magic amounts', () => {
   it('detects magic amounts regardless of formatting', () => {
-    expect(magicOutcome('13.13')?.status).toBe('error');
-    expect(magicOutcome('66.6')?.status).toBe('refunded');
-    expect(magicOutcome('200')).toBeNull();
+    expect(magicOutcome('ARS', '13.13')?.status).toBe('error');
+    expect(magicOutcome('PEN', '66.6')?.status).toBe('refunded');
+    expect(magicOutcome('ARS', '200')).toBeNull();
   });
 
-  it('keeps every magic amount inside both assets limits', () => {
-    for (const amount of ['13.13', '66.60', '77.70', '11.11', '2999.99', '55.55']) {
-      expect(checkLimits(DEFAULT_SETTINGS, 'ARS', 'deposit', amount)).toEqual({ ok: true });
-      expect(checkLimits(DEFAULT_SETTINGS, 'PEN', 'deposit', amount)).toEqual({ ok: true });
+  it('scales the COP magic amounts by 1000', () => {
+    expect(magicOutcome('COP', '13130')?.status).toBe('error');
+    expect(magicOutcome('COP', '2999990.00')?.status).toBe('too_large');
+    expect(magicOutcome('COP', '13.13')).toBeNull();
+    expect(magicOutcome('ARS', '13130')).toBeNull();
+  });
+
+  it('keeps every magic amount inside its asset limits', () => {
+    for (const code of FIAT_CODES) {
+      for (const { amount } of magicAmounts(code)) {
+        for (const op of ['deposit', 'withdraw'] as const) {
+          expect(checkLimits(DEFAULT_SETTINGS, code, op, amount)).toEqual({ ok: true });
+        }
+      }
     }
   });
 });

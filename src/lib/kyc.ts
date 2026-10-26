@@ -7,8 +7,8 @@ export const kycDataSchema = z.object({
   first_name: z.string().trim().min(1, 'Ingresá el nombre').max(80),
   last_name: z.string().trim().min(1, 'Ingresá el apellido').max(80),
   email: z.email('Email inválido'),
-  id_type: z.enum(['DNI', 'CE']),
-  id_country_code: z.enum(['AR', 'PE']),
+  id_type: z.enum(['DNI', 'CE', 'CC']),
+  id_country_code: z.enum(['AR', 'PE', 'CO']),
   id_number: z
     .string()
     .trim()
@@ -18,7 +18,9 @@ export const kycDataSchema = z.object({
 export type KycData = z.infer<typeof kycDataSchema>;
 
 /** Fictitious but stable defaults, derived from the account so the same wallet always sees the same person. */
-export function fakeKycDefaults(account: string, country: 'AR' | 'PE'): KycData {
+const ID_TYPE = { AR: 'DNI', PE: 'CE', CO: 'CC' } as const;
+
+export function fakeKycDefaults(account: string, country: 'AR' | 'PE' | 'CO'): KycData {
   let hash = 0;
   for (const ch of account) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   const idNumber = String(20_000_000 + (hash % 30_000_000));
@@ -26,9 +28,9 @@ export function fakeKycDefaults(account: string, country: 'AR' | 'PE'): KycData 
     first_name: 'Juana',
     last_name: 'Pérez',
     email: `sandbox+${account.slice(0, 8).toLowerCase()}@example.com`,
-    id_type: country === 'AR' ? 'DNI' : 'CE',
+    id_type: ID_TYPE[country],
     id_country_code: country,
-    id_number: country === 'AR' ? idNumber : idNumber.slice(0, 9),
+    id_number: country === 'PE' ? idNumber.slice(0, 9) : idNumber,
   };
 }
 

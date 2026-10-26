@@ -28,7 +28,7 @@ export async function buildStellarToml(): Promise<string> {
     '[DOCUMENTATION]',
     'ORG_NAME = "Pollar Sandbox"',
     `ORG_URL = ${str(publicUrl())}`,
-    'ORG_DESCRIPTION = "Stellar testnet anchor for testing ARS and PEN ramps end to end. Not a real anchor: no real money moves."',
+    'ORG_DESCRIPTION = "Stellar testnet anchor for testing ARS, PEN and COP ramps end to end. Not a real anchor: no real money moves."',
   ];
   for (const code of FIAT_CODES) {
     lines.push(

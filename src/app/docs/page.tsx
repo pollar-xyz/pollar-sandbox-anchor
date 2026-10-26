@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { MAGIC_AMOUNTS } from '@/lib/magic';
+import { FIAT_CODES } from '@/lib/assets';
+import { magicAmounts } from '@/lib/magic';
 import { DEFAULT_SETTINGS } from '@/lib/settings';
 
 export const metadata: Metadata = { title: 'Docs - Pollar Sandbox Anchor' };
@@ -25,10 +26,10 @@ export default function DocsPage() {
     <main className="mx-auto max-w-3xl px-4 py-12 text-[15px]">
       <h1 className="text-3xl font-bold">Pollar Sandbox Anchor</h1>
       <p className="text-muted mt-3">
-        A public Stellar <strong>testnet</strong> anchor for <Code>ARS</Code> and <Code>PEN</Code>. It speaks SEP-1, SEP-10 and
-        SEP-24 with the same endpoints, fields, statuses and fees as a real Latin American fiat anchor, so you can build and
-        test on-ramps and off-ramps end to end. No real money moves and no real KYC is required. It is not affiliated with any
-        real anchor.
+        A public Stellar <strong>testnet</strong> anchor for <Code>ARS</Code>, <Code>PEN</Code> and <Code>COP</Code>. It speaks
+        SEP-1, SEP-10 and SEP-24 with the same endpoints, fields, statuses and fees as a real Latin American fiat anchor, so you
+        can build and test on-ramps and off-ramps end to end. No real money moves and no real KYC is required. It is not
+        affiliated with any real anchor.
       </p>
 
       <nav className="mt-6 flex flex-wrap gap-3 text-sm">
@@ -52,8 +53,8 @@ export default function DocsPage() {
       <Section id="quickstart" title="Quickstart">
         <ol className="list-decimal space-y-2 pl-6">
           <li>
-            Create and fund a testnet account (friendbot) and add a trustline to <Code>ARS</Code> or <Code>PEN</Code>. The
-            issuers are listed in{' '}
+            Create and fund a testnet account (friendbot) and add a trustline to <Code>ARS</Code>, <Code>PEN</Code> or{' '}
+            <Code>COP</Code>. The issuers are listed in{' '}
             <a className="text-brand underline" href="/.well-known/stellar.toml">
               stellar.toml
             </a>
@@ -132,22 +133,29 @@ export default function DocsPage() {
       </Section>
 
       <Section id="magic" title="Magic amounts">
-        <p>Use these amounts in the hosted form to force an outcome. They are valid for both ARS and PEN.</p>
+        <p>
+          Use these amounts in the hosted form to force an outcome. ARS and PEN share the same amounts; COP uses them times
+          1000, so they fall inside its limits.
+        </p>
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="py-2">Amount</th>
+              <th className="py-2">ARS / PEN</th>
+              <th className="py-2">COP</th>
               <th className="py-2">Final status</th>
             </tr>
           </thead>
           <tbody>
-            {Object.entries(MAGIC_AMOUNTS).map(([amount, outcome]) => (
+            {magicAmounts('ARS').map(({ amount, status }, i) => (
               <tr key={amount} className="border-b border-slate-100">
                 <td className="py-2">
                   <Code>{amount}</Code>
                 </td>
                 <td className="py-2">
-                  <Code>{outcome.status}</Code>
+                  <Code>{magicAmounts('COP')[i].amount}</Code>
+                </td>
+                <td className="py-2">
+                  <Code>{status}</Code>
                 </td>
               </tr>
             ))}
@@ -157,7 +165,7 @@ export default function DocsPage() {
 
       <Section id="usdc" title="Testnet USDC">
         <p>
-          The sandbox keeps DEX offers between ARS, PEN, XLM and Circle&apos;s testnet USDC (
+          The sandbox keeps DEX offers between ARS, PEN, COP, XLM and Circle&apos;s testnet USDC (
           <Code>USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5</Code>), so path payments like ARS to USDC work on
           testnet. To get testnet USDC for your own account use the{' '}
           <a className="text-brand underline" href="https://faucet.sozu.capital">
@@ -183,7 +191,7 @@ export default function DocsPage() {
             </tr>
           </thead>
           <tbody>
-            {(['ARS', 'PEN'] as const).flatMap((asset) =>
+            {FIAT_CODES.flatMap((asset) =>
               (['deposit', 'withdraw'] as const).map((op) => {
                 const f = fees[asset][op];
                 return (

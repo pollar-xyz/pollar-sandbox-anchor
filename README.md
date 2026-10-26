@@ -1,11 +1,11 @@
 # Pollar Sandbox Anchor
 
-A public Stellar **testnet** anchor that behaves like a real ARS / PEN fiat anchor, so wallets and apps can test on-ramps and off-ramps end to end without real money.
+A public Stellar **testnet** anchor that behaves like a real ARS / PEN / COP fiat anchor, so wallets and apps can test on-ramps and off-ramps end to end without real money.
 
 - SEP-1 `/.well-known/stellar.toml`
 - SEP-10 `/auth`
 - SEP-24 `/transfer24/*` with hosted interactive pages
-- Assets `ARS` and `PEN` issued by the sandbox on testnet
+- Assets `ARS`, `PEN` and `COP` issued by the sandbox on testnet
 - Magic amounts to force every failure status
 - An admin at `/admin` to bootstrap accounts and manage DEX liquidity (testnet USDC from the Sozu faucet)
 
