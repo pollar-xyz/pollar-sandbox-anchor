@@ -321,7 +321,7 @@ async function bookAssets(): Promise<Record<BookCode, Asset>> {
 /** Replaces the offers of one liquidity wallet (or all) using settings.rates. */
 export async function publishOffers(accountId?: string): Promise<OfferSummary[]> {
   const wallets = accountId ? [await requireLiquidityAccount(accountId)] : await listActiveAccounts(AccountRole.LIQUIDITY);
-  const { rates } = await getSettings();
+  const { rates, max_usdc_per_offer } = await getSettings();
   const assets = await bookAssets();
   const summaries: OfferSummary[] = [];
   for (const wallet of wallets) {
@@ -330,7 +330,7 @@ export async function publishOffers(accountId?: string): Promise<OfferSummary[]>
     const balances = Object.fromEntries(
       (Object.keys(assets) as BookCode[]).map((code) => [code, balanceOf(onchain, assets[code])]),
     ) as Record<BookCode, string | null>;
-    await replaceOffers(keypairOf(wallet), planOffers({ rates, assets, balances }));
+    await replaceOffers(keypairOf(wallet), planOffers({ rates, maxUsdcPerOffer: max_usdc_per_offer, assets, balances }));
     summaries.push(...(await listOffers(wallet.public_key)));
   }
   return summaries;

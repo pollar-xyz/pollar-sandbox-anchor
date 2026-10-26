@@ -34,12 +34,12 @@ export function SandboxControls({
       <details className="mt-3">
         <summary className="cursor-pointer font-medium">Montos mágicos</summary>
         <p className="mt-2 text-amber-900">
-          Si el monto confirmado es uno de estos, la transacción termina en el estado indicado en lugar de completarse:
+          Si los centavos del monto son uno de estos, la transacción termina en el estado indicado en lugar de completarse:
         </p>
         <ul className="mt-2 grid gap-1 font-mono text-xs sm:grid-cols-2">
-          {magic.map(({ amount, status }) => (
-            <li key={amount}>
-              {amount}: {status}
+          {magic.map(({ cents, status, example }) => (
+            <li key={cents}>
+              .{cents} ({example}): {status}
             </li>
           ))}
         </ul>

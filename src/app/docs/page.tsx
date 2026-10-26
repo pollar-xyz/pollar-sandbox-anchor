@@ -137,25 +137,27 @@ export default function DocsPage() {
 
         <Section id="magic" title="Magic amounts">
           <p>
-            Use these amounts in the hosted form to force an outcome. ARS and PEN share the same amounts; COP uses them times
-            1000, so they fall inside its limits.
+            The cents of the amount you enter in the hosted form force an outcome, for any asset and any amount inside its
+            limits. Any other cents complete normally.
           </p>
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b">
-                <th className="py-2">ARS / PEN</th>
-                <th className="py-2">COP</th>
+                <th className="py-2">Ends in</th>
+                <th className="py-2">Examples</th>
                 <th className="py-2">Final status</th>
               </tr>
             </thead>
             <tbody>
-              {magicAmounts('ARS').map(({ amount, status }, i) => (
-                <tr key={amount} className="border-b border-slate-100">
+              {magicAmounts('ARS').map(({ cents, status }) => (
+                <tr key={cents} className="border-b border-slate-100">
                   <td className="py-2">
-                    <Code>{amount}</Code>
+                    <Code>.{cents}</Code>
                   </td>
                   <td className="py-2">
-                    <Code>{magicAmounts('COP')[i].amount}</Code>
+                    {FIAT_CODES.map((code) => (
+                      <Code key={code}>{`${magicAmounts(code).find((m) => m.cents === cents)!.example} ${code}`}</Code>
+                    )).reduce((acc: React.ReactNode[], el, i) => (i ? [...acc, ' ', el] : [el]), [])}
                   </td>
                   <td className="py-2">
                     <Code>{status}</Code>

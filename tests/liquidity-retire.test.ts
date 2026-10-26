@@ -30,7 +30,10 @@ vi.mock('@/lib/db', () => ({
   }),
 }));
 vi.mock('@/lib/settings', () => ({
-  getSettings: async () => ({ rates: { ARS: '1450', PEN: '3.7', COP: '4000', XLM: '4', spread_bps: 100 } }),
+  getSettings: async () => ({
+    rates: { ARS: '1450', PEN: '3.7', COP: '4000', XLM: '4', spread_bps: 100 },
+    max_usdc_per_offer: '20',
+  }),
 }));
 vi.mock('@/lib/accounts', () => ({
   currentGeneration: async () => 1,

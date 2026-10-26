@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { Keypair } from '@stellar/stellar-sdk';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS, type Settings } from '@/lib/settings';
+import type { Settings } from '@/lib/settings';
+import { TEST_SETTINGS } from './fixtures/settings';
 
 // In-memory stand-in for the Prisma client: just the operations and filters transitions.ts uses.
 type Row = Record<string, unknown>;
@@ -169,7 +170,7 @@ function age(id: string, field: 'started_at' | 'updated_at' | 'user_action_requi
 beforeEach(() => {
   store.transactions.length = 0;
   store.events.length = 0;
-  settings = structuredClone(DEFAULT_SETTINGS);
+  settings = structuredClone(TEST_SETTINGS);
   sendPayment.mockReset();
   sendPayment.mockResolvedValue('stellar-hash-1');
   horizonTx.mockReset();
@@ -261,9 +262,9 @@ describe('deposit', () => {
   });
 
   it.each([
-    ['66.60', 'refunded'],
+    ['66.66', 'refunded'],
     ['13.13', 'error'],
-    ['77.70', 'expired'],
+    ['77.77', 'expired'],
     ['11.11', 'too_small'],
     ['55.55', 'no_market'],
   ])('magic amount %s ends in %s without paying', async (amount, status) => {
@@ -272,7 +273,7 @@ describe('deposit', () => {
     expect(ticket.forced_outcome).toBe(status);
     const done = await t.markDepositReceived(created.id, 'user');
     expect(done.status).toBe(status);
-    expect(done.message).toContain(`magic amount ${amount}`);
+    expect(done.message).toContain(`amount ending in .${amount.slice(-2)}`);
     expect(sendPayment).not.toHaveBeenCalled();
     if (status === 'refunded') {
       expect(done.refunded).toBe(true);
@@ -337,13 +338,13 @@ describe('withdrawal', () => {
     ).rejects.toThrow('El Número de cuenta debe tener entre 10 y 16 digitos');
   });
 
-  it('applies the scaled COP magic amount', async () => {
+  it('applies the magic cents to COP', async () => {
     const created = await t.createTransaction({ kind: 'deposit', assetCode: 'COP', account: USER });
-    const ticket = await t.submitDepositAmount(created.id, '13130');
+    const ticket = await t.submitDepositAmount(created.id, '13000.13');
     expect(ticket.forced_outcome).toBe('error');
     expect(ticket.external_extra!.split('|')[0]).toMatch(/^\d{16}$/);
     const done = await t.markDepositReceived(created.id, 'user');
-    expect([done.status, done.message]).toEqual(['error', 'Simulated anchor error (magic amount 13130.00).']);
+    expect([done.status, done.message]).toEqual(['error', 'Simulated anchor error (amount ending in .13).']);
   });
 
   it('assigns the withdraw account and a 32-byte hash memo only after the form', async () => {
@@ -405,11 +406,11 @@ describe('withdrawal', () => {
   });
 
   it('applies the magic refund once the payment arrives', async () => {
-    const pending = await pendingWithdrawal('66.60');
-    const payment = paymentFor(pending, { amount: '66.60' });
+    const pending = await pendingWithdrawal('66.66');
+    const payment = paymentFor(pending, { amount: '66.66' });
     const done = await t.handleWithdrawPayment(payment);
     expect(done?.status).toBe('refunded');
-    expect(done?.refunds).toMatchObject({ payments: [{ id: payment.txHash, id_type: 'stellar', amount: '66.60' }] });
+    expect(done?.refunds).toMatchObject({ payments: [{ id: payment.txHash, id_type: 'stellar', amount: '66.66' }] });
   });
 });
 

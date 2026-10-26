@@ -62,7 +62,7 @@ describe('planOffers', () => {
   };
 
   it('offers both directions of every pair', () => {
-    const plans = planOffers({ rates, assets, balances });
+    const plans = planOffers({ rates, maxUsdcPerOffer: '1000000', assets, balances });
     expect(plans).toHaveLength(10);
     const pairs = plans.map((p) => `${code(p.selling)}>${code(p.buying)}`).sort();
     expect(pairs).toEqual(
@@ -82,7 +82,7 @@ describe('planOffers', () => {
   });
 
   it('sizes from balances and never locks more than 90% of an asset', () => {
-    const plans = planOffers({ rates, assets, balances });
+    const plans = planOffers({ rates, maxUsdcPerOffer: '1000000', assets, balances });
     const amount = (s: BookCode, b: BookCode) => plans.find((p) => code(p.selling) === s && code(p.buying) === b)!.amount;
     expect(amount('ARS', 'XLM')).toBe('450000.0000000');
     expect(amount('USDC', 'ARS')).toBe('90.0000000');
@@ -96,13 +96,13 @@ describe('planOffers', () => {
   });
 
   it('skips pairs without a trustline and empty balances', () => {
-    const plans = planOffers({ rates, assets, balances: { ...balances, USDC: null, PEN: '0' } });
+    const plans = planOffers({ rates, maxUsdcPerOffer: '1000000', assets, balances: { ...balances, USDC: null, PEN: '0' } });
     const pairs = plans.map((p) => `${code(p.selling)}>${code(p.buying)}`).sort();
     expect(pairs).toEqual(['ARS>XLM', 'XLM>ARS', 'XLM>PEN']);
   });
 
   it('quotes COP against XLM and USDC once the wallet holds it', () => {
-    const plans = planOffers({ rates, assets, balances: { ...balances, COP: '40000000' } });
+    const plans = planOffers({ rates, maxUsdcPerOffer: '1000000', assets, balances: { ...balances, COP: '40000000' } });
     const pairs = plans.map((p) => `${code(p.selling)}>${code(p.buying)}`).filter((p) => p.includes('COP'));
     expect(pairs.sort()).toEqual(['COP>USDC', 'COP>XLM', 'USDC>COP', 'XLM>COP']);
     expect(Number(plans.find((p) => code(p.selling) === 'USDC' && code(p.buying) === 'COP')!.price)).toBeCloseTo(
@@ -111,8 +111,16 @@ describe('planOffers', () => {
     );
   });
 
+  it('caps every offer that sells USDC', () => {
+    const plans = planOffers({ rates, maxUsdcPerOffer: '20', assets, balances: { ...balances, USDC: '2745' } });
+    const selling = plans.filter((p) => code(p.selling) === 'USDC');
+    expect(selling.length).toBeGreaterThan(0);
+    expect(selling.every((p) => p.amount === '20.0000000')).toBe(true);
+    expect(plans.find((p) => code(p.selling) === 'ARS' && code(p.buying) === 'USDC')!.amount).toBe('450000.0000000');
+  });
+
   it('keeps the XLM reserve out of the book', () => {
-    const plans = planOffers({ rates, assets, balances: { ...balances, XLM: '50' } });
+    const plans = planOffers({ rates, maxUsdcPerOffer: '1000000', assets, balances: { ...balances, XLM: '50' } });
     expect(plans.some((p) => p.selling.isNative())).toBe(false);
   });
 });

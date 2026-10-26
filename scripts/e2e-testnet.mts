@@ -16,9 +16,9 @@ const { db } = await import('../src/lib/db');
 
 const base = (process.argv[2] ?? 'http://localhost:3090').replace(/\/$/, '');
 const code = (process.argv[3] ?? 'ARS') as 'ARS' | 'PEN' | 'COP';
-// COP limits start at 10000.
-const depositAmount = code === 'COP' ? '20000' : '200';
-const withdrawAmount = code === 'COP' ? '10000' : '100';
+// About 5 and 2 USD, inside the default 1 to 10 USD limits.
+const depositAmount = { ARS: '7000', PEN: '18', COP: '20000' }[code];
+const withdrawAmount = { ARS: '3000', PEN: '8', COP: '8000' }[code];
 const horizon = new Horizon.Server(process.env.HORIZON_URL ?? 'https://horizon-testnet.stellar.org');
 
 function log(step: string, data?: unknown) {

@@ -26,6 +26,8 @@ const schemas = {
   /** Minutes a transaction may wait for the user before it expires. */
   expire_minutes: z.number().int().min(1),
   usdc_alert_threshold: z.string(),
+  /** Most USDC one DEX offer may sell. Bounds what the free fiat tokens can take out between republishes. */
+  max_usdc_per_offer: z.string(),
 };
 
 export type Settings = { [K in keyof typeof schemas]: z.infer<(typeof schemas)[K]> };
@@ -33,24 +35,27 @@ export type SettingKey = keyof Settings;
 
 export const DEFAULT_SETTINGS: Settings = {
   fees: {
+    // 1 to 10 USD per operation at the default rates: the tokens are free, so a larger deposit only buys more of
+    // the anchor's USDC on the DEX.
     ARS: {
-      deposit: { min: '11', max: '500000', fee_fixed: '10', fee_percent: '1' },
-      withdraw: { min: '11', max: '500000', fee_fixed: '10', fee_percent: '2' },
+      deposit: { min: '1450', max: '14500', fee_fixed: '145', fee_percent: '1' },
+      withdraw: { min: '1450', max: '14500', fee_fixed: '145', fee_percent: '2' },
     },
     PEN: {
-      deposit: { min: '2', max: '3000', fee_fixed: '1', fee_percent: '1' },
-      withdraw: { min: '2', max: '3000', fee_fixed: '1', fee_percent: '2' },
+      deposit: { min: '3.7', max: '37', fee_fixed: '0.37', fee_percent: '1' },
+      withdraw: { min: '3.7', max: '37', fee_fixed: '0.37', fee_percent: '2' },
     },
     COP: {
-      deposit: { min: '10000', max: '5000000', fee_fixed: '1000', fee_percent: '1' },
-      withdraw: { min: '10000', max: '5000000', fee_fixed: '1000', fee_percent: '2' },
+      deposit: { min: '4000', max: '40000', fee_fixed: '400', fee_percent: '1' },
+      withdraw: { min: '4000', max: '40000', fee_fixed: '400', fee_percent: '2' },
     },
   },
   rates: { ARS: '1450', PEN: '3.7', COP: '4000', XLM: '4', spread_bps: 100 },
-  account_limits: { ARS: { daily: '1000000' }, PEN: { daily: '6000' }, COP: { daily: '20000000' } },
+  account_limits: { ARS: { daily: '72500' }, PEN: { daily: '185' }, COP: { daily: '200000' } },
   auto_receive_seconds: 0,
   expire_minutes: 60,
   usdc_alert_threshold: '200',
+  max_usdc_per_offer: '20',
 };
 
 export async function getSettings(): Promise<Settings> {

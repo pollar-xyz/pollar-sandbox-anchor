@@ -25,6 +25,10 @@ const META: Record<SettingKey, { title: string; description: string }> = {
     title: 'Expiración (minutos)',
     description: 'Tiempo que una transacción espera al usuario antes de expirar.',
   },
+  max_usdc_per_offer: {
+    title: 'Máximo de USDC por oferta',
+    description: 'Lo más que vende cada oferta del DEX. Es lo máximo que pueden sacar por par hasta que republiques.',
+  },
   usdc_alert_threshold: {
     title: 'Umbral de alerta de USDC',
     description: 'Por debajo de este saldo la página de liquidez muestra una alerta.',

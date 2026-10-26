@@ -52,9 +52,11 @@ function formatPrice(value: number): string {
 /**
  * Offers for one wallet. `balances` holds the wallet's balance per code, or null when it has no trustline to it.
  * Each asset may lock at most 90% of its balance across all its directions, and 45% in any single direction.
+ * An offer selling USDC never exceeds `maxUsdcPerOffer`.
  */
 export function planOffers(input: {
   rates: Rates;
+  maxUsdcPerOffer: string;
   assets: Record<BookCode, Asset>;
   balances: Record<BookCode, string | null>;
 }): OfferPlan[] {
@@ -71,7 +73,9 @@ export function planOffers(input: {
     const available = availableStroops(selling, input.balances[selling]!);
     const n = count.get(selling)!;
     const shareBps = TOTAL_SHARE_BPS / n < DIRECTION_SHARE_BPS ? TOTAL_SHARE_BPS / n : DIRECTION_SHARE_BPS;
-    const amount = (available * shareBps) / 10_000n;
+    const share = (available * shareBps) / 10_000n;
+    const cap = toStroops(input.maxUsdcPerOffer);
+    const amount = selling === 'USDC' && share > cap ? cap : share;
     if (amount <= 0n) continue;
     plans.push({
       selling: input.assets[selling],
