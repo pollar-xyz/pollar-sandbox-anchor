@@ -1,31 +1,72 @@
+import Image from 'next/image';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+/** The white Pollar mark and wordmark, plus a "Sandbox" tag. Meant for a dark background. */
 export function Wordmark() {
   return (
-    <span className="inline-flex items-center gap-2 text-white">
-      <span className="text-brand flex size-8 items-center justify-center rounded-lg bg-white text-base font-bold">P</span>
-      <span className="text-lg font-semibold tracking-tight">
-        Pollar <span className="font-normal opacity-80">Sandbox</span>
+    <span className="inline-flex items-center gap-3">
+      <span className="flex items-center gap-[7px]">
+        <Image src="/brand/logo-mark.svg" alt="" width={25.971} height={28} priority />
+        <Image src="/brand/logo-text.svg" alt="Pollar" width={103.884} height={18.9534} priority />
+      </span>
+      <span className="text-sky rounded-full border border-white/15 bg-white/8 px-2.5 py-0.5 text-xs font-semibold tracking-wide">
+        Sandbox
       </span>
     </span>
   );
 }
 
-/** Full-width blue band with a centered white card overlapping it. */
+/** Night band with the logo, for pages on a light background. */
+export function SiteHeader() {
+  return (
+    <header className="bg-night">
+      <div className="mx-auto flex max-w-5xl items-center px-4 py-5">
+        <Link href="/" aria-label="Pollar Sandbox">
+          <Wordmark />
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+/** The night sky of accounts.pollar.xyz, with a centered white card. */
 export function AnchorShell({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-[calc(100vh-2.25rem)] pb-16">
-      <div className="bg-brand h-56 w-full sm:h-64">
-        <div className="mx-auto flex max-w-xl items-center px-4 pt-6">
-          <Wordmark />
-        </div>
+    <div className="bg-night relative flex min-h-[calc(100vh-2.25rem)] flex-col overflow-hidden">
+      <Image
+        src="/brand/glow-top.svg"
+        alt=""
+        width={1194.29}
+        height={1194.29}
+        priority
+        className="pointer-events-none absolute top-[-517px] right-[-357px] max-w-none"
+      />
+      <Image
+        src="/brand/glow-bottom.svg"
+        alt=""
+        width={974.286}
+        height={974.286}
+        priority
+        className="pointer-events-none absolute top-[383px] left-[-437px] max-w-none"
+      />
+      <Image
+        src="/brand/snow-steps.svg"
+        alt=""
+        width={1440}
+        height={960}
+        priority
+        className="pointer-events-none absolute top-0 left-1/2 max-w-none -translate-x-1/2"
+      />
+      <div className="relative z-10 px-4 pt-8 sm:px-12 sm:pt-10">
+        <Wordmark />
       </div>
-      <main className="relative mx-auto -mt-36 max-w-xl px-4 sm:-mt-40">
-        <div className="bg-surface rounded-2xl px-5 py-8 shadow-[0_10px_40px_-12px_rgba(20,36,184,0.25)] sm:px-12 sm:py-10">
+      <main className="relative z-10 mx-auto w-full max-w-xl flex-1 px-4 pt-8 pb-16 sm:pt-10">
+        <div className="rounded-[28px] bg-white px-5 py-8 shadow-[0_30px_40px_rgba(3,8,26,0.5)] sm:px-10 sm:py-10">
           {children}
         </div>
-        <p className="text-muted mt-6 text-center text-xs">
-          Pollar Sandbox es un anchor de prueba en Stellar testnet. No tiene relación con ningún anchor real.
+        <p className="mt-6 text-center text-xs text-white/55">
+          Pollar Sandbox es un anchor de prueba en Stellar testnet. Los tokens no tienen valor y no se mueve dinero real.
         </p>
       </main>
     </div>
@@ -35,7 +76,7 @@ export function AnchorShell({ children }: { children: ReactNode }) {
 export function CardHeader({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {
   return (
     <header className="text-center">
-      <h1 className="text-ink text-3xl font-bold sm:text-4xl">{title}</h1>
+      <h1 className="text-ink text-[28px] leading-9 font-bold tracking-[-0.02em] sm:text-[32px]">{title}</h1>
       {subtitle ? <p className="text-muted mt-2 text-sm">{subtitle}</p> : null}
       {children}
     </header>
@@ -46,7 +87,7 @@ export function AssetLine({ assetCode, name }: { assetCode: string; name: string
   return (
     <div className="mt-5 text-center">
       <p className="text-ink text-sm">Asset</p>
-      <p className="text-sm font-medium text-violet-700">
+      <p className="text-brand text-sm font-medium">
         {assetCode}
         {name ? <span className="text-muted font-normal"> &middot; {name}</span> : null}
       </p>

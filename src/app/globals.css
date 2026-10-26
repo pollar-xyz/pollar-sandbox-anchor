@@ -1,15 +1,21 @@
 @import 'tailwindcss';
 
+/* Pollar brand, the same palette as accounts.pollar.xyz (pollar-web/apps/accounts). */
 @theme {
-  --color-brand: #1b2ee6;
-  --color-brand-dark: #1424b8;
-  --color-ink: #2b2b33;
-  --color-muted: #7a7a85;
+  --color-brand: #2869b3;
+  --color-brand-dark: #054f8c;
+  --color-brand-50: #e9f1fa;
+  --color-night: #0f172a;
+  --color-sky: #7fd0ff;
+  --color-ice: #cddff2;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
   --color-surface: #ffffff;
-  --color-canvas: #f4f5f9;
-  --color-warning: #f5a524;
-  --color-info-bg: #e7ebff;
-  --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: #f8fafc;
+  --color-warning: #d97706;
+  --color-info-bg: #e9f1fa;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 html,

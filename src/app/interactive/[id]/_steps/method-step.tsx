@@ -43,7 +43,7 @@ export function MethodStep({
 function TileIcon({ children, muted = false }: { children: ReactNode; muted?: boolean }) {
   return (
     <span
-      className={`flex size-16 items-center justify-center rounded-full ${muted ? 'bg-gray-50 text-gray-300' : 'bg-violet-50 text-violet-600'}`}
+      className={`flex size-16 items-center justify-center rounded-full ${muted ? 'bg-gray-50 text-gray-300' : 'bg-brand-50 text-brand'}`}
     >
       <svg aria-hidden viewBox="0 0 24 24" className="size-9" fill="none" stroke="currentColor" strokeWidth={1.5}>
         {children}
